@@ -10,21 +10,8 @@ import {
 import { readable, writable } from 'svelte/store'
 
 import {
-	arbitrum,
-	aurora,
-	avalanche,
-	base,
-	bsc,
-	celo,
-	gnosis,
 	mainnet,
-	optimism,
 	polygon,
-	zkSync,
-	zora,
-	goerli,
-	ronin,
-	saigon,
 } from 'viem/chains'
 import { CUSTOM_WALLET } from './constants'
 
@@ -45,21 +32,8 @@ const metadata = {
 }
 
 export const chains = [
-	arbitrum,
-	aurora,
-	avalanche,
-	base,
-	bsc,
-	celo,
-	gnosis,
 	mainnet,
-	optimism,
 	polygon,
-	zkSync,
-	zora,
-	goerli,
-	ronin,
-	saigon,
 ] as const
 
 export const wagmiConfig = defaultWagmiConfig({
@@ -76,9 +50,22 @@ createWeb3Modal({
 	wagmiConfig,
 	projectId,
 	themeMode: 'dark',
-	featuredWalletIds: [],
+	featuredWalletIds: [
+		'1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369',
+		'4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0'
+	],
+
 	enableAnalytics: true,
-	customWallets
+	customWallets,
+
+	themeVariables: {
+		'--w3m-color-mix': 'black',
+		'--w3m-color-mix-strength': 0,
+		'--w3m-font-family': "MyriadPro-Regular, san-serif",
+		'--w3m-font-size-master': "text-sm"
+	},
+
+
 })
 
 export const chainId = readable(getChainId(wagmiConfig), (set) =>

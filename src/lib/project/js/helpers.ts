@@ -1,0 +1,867 @@
+import { ALCHEMY_NODE_KEY_ETHEREUM_MAINNET,ALCHEMY_NODE_KEY_POLYGON_MAINNET } from "$lib/boilerplate/js/env.ts";
+
+import { chainId, alchemyNode, user, providerNode } from "$lib/boilerplate/js/stores/wallet.ts";
+
+import { content, visibility } from "$lib/boilerplate/js/stores/alert.ts";
+import { mortgageContractsInfo } from "$lib/project/js/contractAddresses.ts";
+import { _round } from "$lib/boilerplate/js/core";
+
+import erc20Abi from "$lib/boilerplate/abi/erc-20.json";
+import erc721Abi from "$lib/boilerplate/abi/erc-721.json"; 
+import erc1155Abi from "$lib/boilerplate/abi/erc-1155.json";
+import mortgagePoolContractAbi from "$lib/project/abi/mortgagepool.sol/mortgagepool.json";
+import mortgageTicketsAbi from "$lib/project/abi/mortgagetickets.sol/mortgagetickets.json";
+import mortgageConversionVaultAbi from "$lib/project/abi/mortgageconversionvault.sol/mortgageconversionvault.json";
+import mortgageFeeConversionVaultAbi from "$lib/project/abi/mortgagefeeconversionvault.sol/mortgagefeeconversionvault.json";
+
+
+import { BigNumber } from "bignumber.js";
+
+import { ethers } from "ethers";
+
+import { 
+    loanNFTs,
+    userBalances,
+    mortgagePoolContractFunctions,
+    walletBalances,
+    dropDownSelections,
+    dropDownSelectionsNames,
+    FAVLoanDepositAllowance,
+    FAVLoanRepaymentsAllowance,
+    FAVEarnStablecoinDepositAllowance,
+    FAVSwaperc20DepositAllowance,
+    nftRemovalAllowances,
+    contractAddresses,
+    pricePerCoin,
+    availableToRedeem,
+    redeemableNFTs,
+    loanManagementButtonLabels,
+    payOutstandingAmount,
+    finaliseLoanButtonLabel,
+    txProcessMessage
+} from '$lib/project/js/stores/projectDynamicValues.ts';
+
+
+import { get } from 'svelte/store';
+
+
+export const networkNameByChainId = {"0x1": "ethereum","0x89": "polygon"};
+
+export const alchemyNodeKeyByChainId = {"0x1": "https://eth-mainnet.g.alchemy.com/v2/" + ALCHEMY_NODE_KEY_ETHEREUM_MAINNET,"0x89": "https://polygon-mainnet.g.alchemy.com/v2/" + ALCHEMY_NODE_KEY_POLYGON_MAINNET};
+
+export function abbreviate(word, before, after) {
+    word = word.substr(0, before) + "..." + word.substr(word.length - after);
+    return word;
+}
+
+export const uint256 = "65792089237316195423570985008687907853269984665640564039457584007913129639935";
+
+export const socketByChainId = {"0x89": "wss://polygon-mainnet.g.alchemy.com/v2/" + ALCHEMY_NODE_KEY_ETHEREUM_MAINNET};
+
+
+
+
+
+export async function runViewFunction(contract, contractAbi, functionName, args) {
+    try {
+        // console.log("contract ="+ contract+" functionName = " + functionName + " args = " + args);
+        const _alchemyNode: any = get(alchemyNode);
+        const contractObject = new _alchemyNode.eth.Contract(contractAbi, contract);
+        return await contractObject.methods[functionName](...args).call();
+    } catch (error) {
+        console.error(`Error in runViewFunction whilst executing:, ${functionName}, ${(error as Error).message}`);
+        return "Error"; // Return an error indicator or specific object
+    }
+}
+
+export async function getWalletBalances() {
+    const _chainId = get(chainId);
+    const _alchemyNode: any = get(alchemyNode);
+    const _user = get(user);
+    const tempWalletBalances = get(walletBalances);
+    console.log("getWalletBalances chainId = ", _chainId," user = ",  _user );
+    console.log("getWalletBalances _alchemyNode = ", _alchemyNode);
+
+    // Constants for item types
+    const nfts = "nfts";
+    const tokens = "tokens";
+
+    // Initialize walletBalances
+    // let tempWalletBalances = {};
+
+    if (!_chainId) {
+        console.error("Network information not found for the current network.");
+        return;
+    }
+
+    // Ensure the _chainId structure exists in walletBalances
+    tempWalletBalances[_chainId] = { vaults: {} };
+
+    try {
+        for (const vaultName in mortgageContractsInfo[_chainId]["vaults"]) {
+            // get mortgagePool contract and add to tokens
+            // Initialize vault structure within walletBalances
+            tempWalletBalances[_chainId]["vaults"][vaultName] = { tokens: {}, nfts: {} };
+
+            const vaultInfo = mortgageContractsInfo[_chainId]["vaults"][vaultName];
+            if (vaultInfo[tokens]) {
+                for (const tokenKey in vaultInfo[tokens]) {
+                    const tokenInfo = vaultInfo[tokens][tokenKey];
+                    // console.log("TOKEN found:", tokenKey);
+                    const tokenObject = new _alchemyNode.eth.Contract(erc20Abi, tokenInfo.address);
+                    const balance = new BigNumber(await tokenObject.methods.balanceOf(_user).call());
+                    const balanceString = balance.dividedBy(10 ** tokenInfo.decimals).decimalPlaces(tokenInfo.decimals, 1).toFixed();
+
+                    tempWalletBalances[_chainId]["vaults"][vaultName]["tokens"][tokenKey] = {
+                        balance: _round(balanceString, 5),
+                        rawBalance: balance,
+                        tokenIcon: tokenInfo.tokenIcon || '/default-icon.svg', // Default icon if not provided
+                        ticker: tokenInfo.ticker || 'Unknown' // Default ticker if not provided
+                    };
+                }
+            }
+
+            if (vaultInfo[nfts]) {
+                for (const nftKey in vaultInfo[nfts]) {
+                    const nftInfo = vaultInfo[nfts][nftKey];
+                    // console.log("NFT found:", nftKey);
+                    const balanceString = await getNFTBalance(_alchemyNode, nftInfo.address, _user);
+                    let balanceNumber = parseInt(balanceString);
+                    // console.log("User has "+balanceNumber+ " "+nftInfo.address+ nftInfo.address+ " NFTs in " +vaultName+ " vault");
+                    let ownedIds = balanceNumber > 0 ? await getOwnedNFTIds(_alchemyNode, nftInfo.address, _user, balanceNumber) : [];
+
+                    tempWalletBalances[_chainId]["vaults"][vaultName]["nfts"][nftKey] = {
+                        balance: balanceString,
+                        ownedIds: ownedIds
+                    };
+                }
+            }
+            const mortgagePoolTicker = mortgageContractsInfo[_chainId].vaults[vaultName].coreContracts["Mortgage Pool"].ticker;
+            const mortgagePoolTokenIcon = mortgageContractsInfo[_chainId].vaults[vaultName].coreContracts["Mortgage Pool"].tokenIcon;
+            const mortgagePoolDecimals = mortgageContractsInfo[_chainId].vaults[vaultName].coreContracts["Mortgage Pool"].decimals;
+            const mortgagePoolAddress = mortgageContractsInfo[_chainId].vaults[vaultName].coreContracts["Mortgage Pool"].address;
+            // console.log("getWalletBalances: mortgagePoolTicker = ", mortgagePoolTicker," mortgagePoolTokenIcon = ", mortgagePoolTokenIcon, " mortgagePoolDecimals = ", mortgagePoolDecimals," mortgagePoolAddress = ", mortgagePoolAddress);
+            const tokenObject = new _alchemyNode.eth.Contract(erc20Abi, mortgagePoolAddress);
+            const balance = new BigNumber(await tokenObject.methods.balanceOf(_user).call());
+            const balanceString = balance.dividedBy(10 ** mortgagePoolDecimals).decimalPlaces(mortgagePoolDecimals, 1).toFixed();
+
+            tempWalletBalances[_chainId]["vaults"][vaultName]["tokens"]["Mortgage Pool"] = {
+                balance: _round(balanceString, 5),
+                rawBalance: balance,
+                tokenIcon: mortgagePoolTokenIcon || '/default-icon.svg', // Default icon if not provided
+                ticker: mortgagePoolTicker || 'Unknown' // Default ticker if not provided
+            };
+        }
+    } catch (error) {
+        console.error("Error occurred:", error);
+    }
+    
+    return tempWalletBalances;
+
+}
+
+
+export async function getNFTBalance(alchemyNode, nftContractAddress, ownerAddress) {
+    try {
+        //console.log("NFT Contract Address:", nftContractAddress);
+        //console.log("Owner Address:", ownerAddress);
+
+        const tokenObject = new alchemyNode.eth.Contract(erc721Abi, nftContractAddress);
+        let balance = await tokenObject.methods.balanceOf(ownerAddress).call();
+        
+        let balanceString = balance.toString(); // Convert to string
+        //console.log("Balance:", balanceString); // Log the string representation
+        return balanceString;
+    } catch (error) {
+        console.error("Error fetching NFT balance:", error);
+        return "Error";
+    }
+}
+
+export async function getOwnedNFTIds(alchemyNode, nftContractAddress, ownerAddress, balance) {
+    try {
+        const tokenObject = new alchemyNode.eth.Contract(erc721Abi, nftContractAddress);
+        let ownedIds: string[] = []; // Update the type to string[]
+
+        for (let index = 0; index < balance; index++) {
+            let tokenId: string = await tokenObject.methods.tokenOfOwnerByIndex(ownerAddress, index).call();
+            ownedIds.push(tokenId.toString());
+        }
+
+        // console.log("Owned IDs:", ownedIds);
+        return ownedIds;
+    } catch (error) {
+        console.error("Error fetching owned NFT IDs:", error);
+        return [];
+    }
+}
+
+export async function updateManagementButtons(inputAmount, vault, loanId) {
+    if (isNaN(inputAmount)) {
+        console.error('Invalid input amount');
+        return;
+    }
+
+    // Fetch the isApproved status from loanNFTs
+    const loanNfts = get(loanNFTs)[vault];
+    const loan = loanNfts ? loanNfts.find(l => l.id === loanId) : null;
+    console.log("updateManagementButtons: loanNFTs[vault][loan] =",loan);
+    console.log("updateManagementButtons: isApproved =",loan.isApproved );
+    const isApproved = loan ? loan.isApproved : false;
+
+    // Update finaliseLoanButtonLabel using the correct method
+    finaliseLoanButtonLabel.update(labels => {
+        if (!labels[vault]) labels[vault] = {};
+        labels[vault][loanId] = isApproved ? "Finalise" : "Approve";
+        console.log("updateManagementButtons: labels[vault][loanId] = ", labels[vault][loanId]);
+        return labels;
+    });
+
+    // Convert the input amount to BigNumber for accurate comparison
+    inputAmount = new BigNumber(inputAmount);
+
+    // Retrieve the current allowance from the FAVLoanRepaymentsAllowance store.
+    const currentAllowanceArray = get(FAVLoanRepaymentsAllowance)[vault];
+    const currentAllowance = new BigNumber(currentAllowanceArray && currentAllowanceArray.length > 0 ? currentAllowanceArray[0] : '0');
+
+    // Determine if the transaction needs approval
+    const payOutstandingNeedsApproval = inputAmount.isGreaterThan(currentAllowance);
+    const fullyRepayNeedsApproval = new BigNumber(loan.earlySettlementFigure).isGreaterThan(currentAllowance);
+
+
+    // Update the labels based on whether approval is needed
+    loanManagementButtonLabels.update(labels => {
+        if (!labels[vault]) labels[vault] = {};
+        labels[vault][loanId] = {
+            payOutstanding: payOutstandingNeedsApproval ? "Approve" : "Pay",
+            fullyRepay: fullyRepayNeedsApproval ? "Approve" : "Fully repay"
+        };
+        return labels;
+    });
+
+    // Update payOutstandingAmount
+    payOutstandingAmount.update(amounts => {
+        if (!amounts[vault]) amounts[vault] = {};
+        amounts[vault][loanId] = inputAmount.toString();
+        return amounts;
+    });
+
+    
+
+}
+
+export async function executeFunction(contractAddress, contractAbi, functionName, args) {
+    let _hash;
+        try {
+            console.log("Execute function. contractAddress ="+ contractAddress+" functionName = " + functionName + " args = " + args);
+            const gasPrice = await getGasPrice(); 
+            const providerNode = await getProviderNode();
+            const signer = providerNode.getSigner();
+            const chainId = await getChainId();
+            const userBalances = await getUserBalances();
+            const mortgagePoolContract = await getMortgagePoolContract();
+            const user = await getUser();
+
+            const contractObject = new ethers.Contract(contractAddress, contractAbi, signer); 
+            // Dynamically estimate gas for the specified function with given arguments
+            const gasLimit = await contractObject.estimateGas[functionName](...args);
+            const txResponse = await contractObject[functionName](...args, {
+                gasLimit: gasLimit,
+                gasPrice: gasPrice
+            });
+            // console.log(txResponse.hash);
+            _hash = txResponse.hash;
+            txProcessMessage.set(true);
+            const txReceipt = await txResponse.wait();
+            // console.log(txReceipt);
+            return true            
+        }
+        catch (error) {
+            console.log(error);
+            txProcessMessage.set(false);
+            return false
+        }
+}
+
+// Reactive statement to get the mortgage pool address
+// $: mortgagePoolAddress = initiateContractAddresses();
+
+export async function updateContractAddresses() {
+
+    const _chainId = get(chainId);
+    const _contractAddresses = get(contractAddresses);
+
+    updateCurrentSelectedDropdowns();    
+
+    const _dropDownSelectionsNames = get(dropDownSelectionsNames);
+    // const currentBorrowVault = _dropDownSelectionsNames.FAVLoanBorrowVault;
+    const currentEarnVault = _dropDownSelectionsNames.FAVEarnDepositVault;
+    // const currentSwapVault = _dropDownSelectionsNames.FAVSwapDepositVault;
+    
+
+    _contractAddresses.mortgagePoolAddress = mortgageContractsInfo[_chainId].vaults[currentEarnVault].coreContracts["Mortgage Pool"].address;
+    _contractAddresses.stablecoinAddress = mortgageContractsInfo[_chainId].vaults[currentEarnVault].tokens["Stablecoin"].address;
+    _contractAddresses.stablecoinDecimals = mortgageContractsInfo[_chainId].vaults[currentEarnVault].tokens["Stablecoin"].decimals;
+    _contractAddresses.depositErc20Address = mortgageContractsInfo[_chainId].vaults[currentEarnVault].tokens["Deposit erc20"].address;
+    _contractAddresses.depositErc20Decimals = mortgageContractsInfo[_chainId].vaults[currentEarnVault].tokens["Deposit erc20"].decimals;
+    _contractAddresses.favStableAddress = mortgageContractsInfo[_chainId].vaults[currentEarnVault].coreContracts["Mortgage Pool"].address;
+    _contractAddresses.favStableDecimals = mortgageContractsInfo[_chainId].vaults[currentEarnVault].coreContracts["Mortgage Pool"].decimals;
+    _contractAddresses.mortgageConversionVaultAddress = mortgageContractsInfo[_chainId].vaults[currentEarnVault].coreContracts["Mortgage Conversion Vault"].address;
+
+    // Log updated addresses for debugging
+    // console.log("Updated contract addresses:", _contractAddresses);
+
+    // Set the store with the updated object
+    contractAddresses.set(_contractAddresses);
+    // console.log("Current contract addresses:", get(contractAddresses));
+    
+}
+
+export function updateCurrentSelectedDropdowns(){
+    getDropDownSelectionsNames();
+
+    const _chainId = get(chainId);
+    const _dropDownSelections = get(dropDownSelections);
+ 
+    // FAV Loans
+    const currentLoansVault = findVaultIdentifierByIndex(mortgageContractsInfo, _chainId, _dropDownSelections.FAVLoanBorrowVault) || "";
+    // FAV Earn
+    const currentEarnVault = findVaultIdentifierByIndex(mortgageContractsInfo, _chainId, _dropDownSelections.FAVEarnDepositVault) || "";
+    const currentEarnExchangeStable = findVaultIdentifierByIndex(mortgageContractsInfo, _chainId, _dropDownSelections.FAVEarnExchangeStable) || "";
+    const FAVEarnRedeemIOU = findVaultIdentifierByIndex(mortgageContractsInfo, _chainId, _dropDownSelections.FAVEarnRedeemIOU) || "";
+    // FAV Swap
+    const currentSwapVault = findVaultIdentifierByIndex(mortgageContractsInfo, _chainId, _dropDownSelections.FAVSwapDepositVault) || "";
+    const currentRedemptionNFT = findVaultIdentifierByIndex(mortgageContractsInfo, _chainId, _dropDownSelections.FAVSwapRedeemableNFTs) || "";
+    // FAV System
+    const currentSystemLoanVault = findVaultIdentifierByIndex(mortgageContractsInfo, _chainId, _dropDownSelections.FAVSystemLoanVault) || "";
+    // Dashboard Loans
+    const currentDashboardLoans = _dropDownSelections.DashboardLoans || [];
+
+    // Set the new values directly on the store
+    dropDownSelectionsNames.set({
+        // FAV Loans
+        FAVLoanBorrowVault: currentLoansVault,
+        // FAV Earn
+        FAVEarnDepositVault: currentEarnVault,
+        FAVEarnExchangeStable: currentEarnExchangeStable,
+        FAVEarnRedeemIOU: FAVEarnRedeemIOU,
+        // FAV Swap        
+        FAVSwapDepositVault: currentSwapVault,
+        FAVSwapRedeemableNFTs: currentRedemptionNFT,
+        // FAV System
+        FAVSystemLoanVault: currentSystemLoanVault,
+        // Dashboard Loans
+        DashboardLoans: currentDashboardLoans
+    });
+
+    // console.log("Dropdown names updated:", get(dropDownSelectionsNames));
+}
+
+
+export async function checkAllowances(){
+    
+    /// Allowance function requires, input1: userAddress, input2: spenderAddress
+    const _chainId = get(chainId);
+    const _user = get(user);
+    const _dropdownSelectionNames = get(dropDownSelectionsNames);
+    const _dropdownSelections = get(dropDownSelections);
+    const _contractAddresses = get(contractAddresses);
+
+
+    // Dashboard FAV Loans repayment allowances   
+    let _FAVLoanRepaymentsAllowance = ({});
+    for (const vault of Object.keys(mortgageContractsInfo[_chainId].vaults)) {
+        console.log("Checking allowances for vault:", vault);
+        const stablecoinAddress = mortgageContractsInfo[_chainId].vaults[vault].tokens["Stablecoin"].address;
+        const stablecoinDecimals = mortgageContractsInfo[_chainId].vaults[vault].tokens["Stablecoin"].decimals;
+        const mortgagePoolAddress = mortgageContractsInfo[_chainId].vaults[vault].coreContracts["Mortgage Pool"].address;
+        
+        const favLoansRepaymentArgs = [_user, mortgagePoolAddress];
+        
+        // Assuming runViewFunction is an async function
+        const allowance = await runViewFunction(stablecoinAddress, erc20Abi, "allowance", favLoansRepaymentArgs);
+        _FAVLoanRepaymentsAllowance[vault] = [fromWei(allowance, stablecoinDecimals)];
+        FAVLoanRepaymentsAllowance.set(_FAVLoanRepaymentsAllowance)
+        console.log("FAVLoanRepaymentsAllowance = ", get(FAVLoanRepaymentsAllowance));
+    }
+    
+    // FAV Loans allowances - mortgagePool to move erc20 (Create loan user deposit)
+    const _FAVLoansMortgagePoolAddress = mortgageContractsInfo[_chainId].vaults[_dropdownSelectionNames.FAVLoanBorrowVault].coreContracts["Mortgage Pool"].address;// get the mortgage address for the current selected dropdown/vault on the FAV Loans page
+    const _FAVLoansErc20Address = mortgageContractsInfo[_chainId].vaults[_dropdownSelectionNames.FAVLoanBorrowVault].tokens["Deposit erc20"].address;// get the erc20 token address for the current selected dropdown/vault on the FAV Loans page
+    const favLoansArgs =[_user, _FAVLoansMortgagePoolAddress];
+    const _FAVLoanDepositAllowance = await runViewFunction(_FAVLoansErc20Address, erc20Abi, "allowance", favLoansArgs);
+    // ----------------------------------------------------------------------------------
+ 
+    // FAV Earn allowances - mortgagePool to move stable (FAV Earn stablecoin deposit)
+    const _FAVEarnMortgagePoolAddress = mortgageContractsInfo[_chainId].vaults[_dropdownSelectionNames.FAVEarnDepositVault].coreContracts["Mortgage Pool"].address;// get the mortgage address for the current selected deposit dropdown on the FAV Earn page
+    const _FAVEarnStable20Address = mortgageContractsInfo[_chainId].vaults[_dropdownSelectionNames.FAVEarnDepositVault].tokens["Stablecoin"].address;// get the erc20 token address for the current selected dropdown/vault on the FAV Loans page
+    const favEarnArgs =[_user, _FAVEarnMortgagePoolAddress];
+    console.log("FAVEarnStablecoinDepositAllowance = _dropdownSelectionNames.FAVEarnDepositVault", _dropdownSelectionNames.FAVEarnDepositVault);
+    console.log("FAVEarnStablecoinDepositAllowance = contract:", _FAVEarnStable20Address, " favEarnArgs: ", favEarnArgs);
+    const _FAVEarnStablecoinDepositAllowance = await runViewFunction(_FAVEarnStable20Address, erc20Abi, "allowance", favEarnArgs);
+    console.log("FAVEarnStablecoinDepositAllowance = ", _FAVEarnStablecoinDepositAllowance);
+    // ----------------------------------------------------------------------------------
+
+    // FAV Swap allowances - mortgage conversion vault to move erc20 (FAV Swap erc20 deposit)
+    // check if FAV token is being swapped
+    let _FAVSwapMortgageConversionAddress;
+    let _FAVSwapDepositErc20Address;
+    let favSwapArgs;
+    let _FAVSwaperc20DepositAllowance;
+    let contractName;
+    let convertAbi;
+    let swapToken; 
+
+    if(_dropdownSelections.FAVSwapDepositVault > (Object.keys(mortgageContractsInfo[_chainId]?.vaults).length-1)){
+        console.log("checkAllowances FAV token swap detected");
+        // const vaultChild = coreContracts;
+        contractName = "Mortgage Fee Conversion Vault";
+        swapToken = "Mortgage Synth";
+        convertAbi = mortgageConversionVaultAbi;
+    }else{
+        console.log("checkAllowances FAV token swap NOT detected");
+        // const vaultChild = tokens;
+        contractName = "Mortgage Conversion Vault";
+        swapToken = "Deposit erc20";
+        convertAbi = mortgageFeeConversionVaultAbi;
+    }
+
+    _FAVSwapMortgageConversionAddress = mortgageContractsInfo[_chainId].vaults[_dropdownSelectionNames.FAVSwapDepositVault].coreContracts[contractName].address;// get the mortgage address for the current selected erc20 deposit dropdown on the FAV Swap page
+    _FAVSwapDepositErc20Address = mortgageContractsInfo[_chainId].vaults[_dropdownSelectionNames.FAVSwapDepositVault].tokens[swapToken].address;// get the erc20 token address for the current selected dropdown/vault on the FAV Loans page
+    favSwapArgs =[_user, _FAVSwapMortgageConversionAddress];
+    _FAVSwaperc20DepositAllowance = await runViewFunction(_FAVSwapDepositErc20Address, convertAbi, "allowance", favSwapArgs);
+
+    //--------------------------------------------------------------------------------------
+
+    /// update  allowances
+    
+    //FAV Loans
+    FAVLoanDepositAllowance.set(fromWei(_FAVLoanDepositAllowance,_contractAddresses.depositErc20Decimals));
+    //FAV Earn
+    FAVEarnStablecoinDepositAllowance.set(fromWei(_FAVEarnStablecoinDepositAllowance,_contractAddresses.stablecoinDecimals));
+    // FAV Swap
+    FAVSwaperc20DepositAllowance.set(fromWei(_FAVSwaperc20DepositAllowance, _contractAddresses.depositErc20Decimals));
+
+    console.log("CheckAllowances complete");
+}
+
+
+export async function checkNFTAllowance(loanVault, loanId) {
+    const _chainId = get(chainId);
+    const mortgageTicketsContract = mortgageContractsInfo[_chainId].vaults[loanVault].nfts["Mortgage contracts"].address;
+    const mortgagePoolContract = mortgageContractsInfo[_chainId].vaults[loanVault].coreContracts["Mortgage Pool"].address;
+
+    console.log("checkNFTAllowance loanId = ", loanId, " loanVault = ", loanVault);
+
+    let args = [loanId];
+    let result = await runViewFunction(mortgageTicketsContract, mortgageTicketsAbi, "getApproved", args);
+
+    if (result) {
+        console.log("Transaction successful, NFT allowance address = ", result);
+        const isApproved = result === mortgagePoolContract;
+
+        // Rebuild the array with updated isApproved status
+        loanNFTs.update(nfts => {
+            if (nfts[loanVault]) {
+                return {
+                    ...nfts,
+                    [loanVault]: nfts[loanVault].map(loan => {
+                        if (loan.id === loanId) {
+                            return { ...loan, isApproved: isApproved };
+                        }
+                        return loan;
+                    })
+                };
+            }
+            return nfts;
+        });
+        console.log("mortgagePool contract approved status: ", isApproved);
+        return isApproved;
+    } else {
+        console.error("Transaction failed");
+        return false;
+    }
+}
+
+
+export async function updateAvailableToRedeem(id){
+    if (get(redeemableNFTs).length<0){
+        const _chainId = get(chainId);
+        let _availableToRedeem = get(availableToRedeem);
+        const _dropdownSelectionNames = get(dropDownSelectionsNames);
+        const _redeemableNFTs = get(redeemableNFTs);
+        const vault = _redeemableNFTs[id].vaultName;
+        console.log("updateAvailableToRedeem _redeemableNFTs[id].vaultName = ", _redeemableNFTs[id].vaultName);
+        const mortgageConversionVaultAddress = mortgageContractsInfo[_chainId].vaults[vault].coreContracts["Mortgage Conversion Vault"].address;
+        const args =[];
+        _availableToRedeem = await runViewFunction(mortgageConversionVaultAddress, mortgageConversionVaultAbi, "totalAssets", args);
+        // console.log("availableToRedeem = ", _availableToRedeem);
+        availableToRedeem.set(_availableToRedeem);
+    }
+    
+
+}
+
+export function findVaultIdentifierByIndex(mortgageContractsInfo, chainId, index) {
+    const vaults = mortgageContractsInfo[chainId]?.vaults;
+    if (!vaults) return null;
+
+    const vaultIdentifiers = Object.keys(vaults);
+    // Calculate the adjusted index to wrap around if it exceeds the number of vaults
+    const adjustedIndex = index % vaultIdentifiers.length;
+
+    return vaultIdentifiers[adjustedIndex] || null;
+}
+
+// Convert token amount to its smallest unit (like Wei for Ethereum)
+export function toWei(amount, decimals) {
+    const amountBigNumber = new BigNumber(amount);
+    const factor = new BigNumber(10).pow(decimals);
+    // Using .toFixed(0) to ensure we get a string without decimal places, but without unnecessary trailing zeros
+    return amountBigNumber.multipliedBy(factor).toFixed(0);
+}
+
+// Convert amount in smallest unit back to the standard token unit, removing unnecessary trailing zeros
+export function fromWei(amount, decimals) {
+    const amountBigNumber = new BigNumber(amount);
+    const factor = new BigNumber(10).pow(decimals);
+    // Using .toFixed() with dynamic precision based on the actual value
+    const result = amountBigNumber.dividedBy(factor);
+    const decimalPlaces = result.decimalPlaces() ?? decimals;
+    return result.toFixed(Math.min(decimalPlaces, decimals));
+}
+
+
+export function convertUnixTimestampToDate(unixTimestamp) {
+    // Create a new Date object based on the Unix timestamp
+    const date = new Date(unixTimestamp * 1000); // Convert seconds to milliseconds
+
+    // Format the date as a string (e.g., "Mon, 25 Dec 1995 13:30:00 GMT")
+    // You can adjust the format as needed
+    return date.toUTCString();
+}
+
+export function calculateDifferenceBetweenTimestamps(timestamp1, now) {
+    // Calculate the difference in seconds
+    const differenceInSeconds = timestamp1 - now;
+
+    return differenceInSeconds;
+}
+
+export function formatDuration(durationInSeconds) {
+    // Check if the duration is negative (time in the past)
+    const isPast = durationInSeconds < 0;
+
+    // Use the absolute value for calculation
+    let durationAbs = Math.abs(durationInSeconds);
+
+    // Calculate days, hours, and minutes
+    let days = Math.floor(durationAbs / (3600 * 24));
+    const hours = Math.floor((durationAbs % (3600 * 24)) / 3600);
+    const minutes = Math.floor((durationAbs % 3600) / 60);
+
+    // Build the formatted string
+    let formattedDuration;
+    if (days > 1) {
+        formattedDuration = `${days} days ${hours} h`;
+    } else if (days === 1) {
+        formattedDuration = `${days} day ${hours} h`;
+    } else {
+        formattedDuration = `${hours} h ${minutes} m`;
+    }
+
+    // Add a prefix to indicate past time if necessary
+    if (isPast) {
+        formattedDuration = `-${formattedDuration}`;
+    }
+
+    return formattedDuration;
+}
+
+
+export async function getPendingConversionData(id, vault){
+    //console.log("getPendingConversionData, id = ", id, "vault = ", vault);
+    const _chainId = get(chainId);
+    const conversionVaultTicketsContract = mortgageContractsInfo[_chainId].vaults[vault].nfts["Conversion vault Tickets"].address;
+    const experationArgs = [id];
+    const experation = await runViewFunction(conversionVaultTicketsContract, mortgageTicketsAbi, "experation", experationArgs);
+    //console.log("getPendingConversionData, experation = ", experation);
+    const sizeArgs = [id];
+    const size = await runViewFunction(conversionVaultTicketsContract, mortgageTicketsAbi, "size", sizeArgs);
+    //console.log("getPendingConversionData, size = ", size);
+   
+    return {
+        experationDate:  experation,
+        conversionSize: size,
+
+    }
+
+}
+
+
+
+export async function updatePricePerCoin(vault, favTokenToggle) {
+    // Fetch the current chain ID
+    const _chainId = get(chainId);
+
+    let depositTokenDecimals;
+    let redeemTokenDecimals;
+    let previewRedeem;
+    let totalSupply;
+
+    if(favTokenToggle){
+        //console.log("updatePricePerCoin Starting FAV pricePerCoin");
+        // Get the mortgage conversion vault address and decimals
+        const mortgageFeeConversionVault = mortgageContractsInfo[_chainId].vaults[vault].coreContracts["Mortgage Fee Conversion Vault"].address;
+        depositTokenDecimals = mortgageContractsInfo[_chainId].vaults[vault].tokens["Mortgage Synth"].decimals;
+        redeemTokenDecimals = mortgageContractsInfo[_chainId].vaults[vault].coreContracts["Mortgage Pool"].decimals;
+
+        // Get total supply
+        const totalSupplyArgs = [];
+        //console.log("updatePricePerCoin mortgageFeeConversionVault contract = ", mortgageFeeConversionVault, " mortgageFeeConversionVaultAbi = ", mortgageFeeConversionVaultAbi);
+        totalSupply = await runViewFunction(mortgageFeeConversionVault, mortgageFeeConversionVaultAbi, "totalSupply", totalSupplyArgs);
+        //console.log("updatePricePerCoin totalSupply = ", totalSupply);
+
+        // Get preview redeem value
+        const previewRedeemArgs = [totalSupply];
+        previewRedeem = await runViewFunction(mortgageFeeConversionVault, mortgageFeeConversionVaultAbi, "previewRedeem", previewRedeemArgs);
+        //console.log("updatePricePerCoin previewRedeem = ", previewRedeem);
+    }
+
+    else {   
+        console.log("updatePricePerCoin Starting non-FAV pricePerCoin"); 
+        // Get the mortgage conversion vault address and decimals
+        const mortgageConversionVault = mortgageContractsInfo[_chainId].vaults[vault].coreContracts["Mortgage Conversion Vault"].address;
+        depositTokenDecimals = mortgageContractsInfo[_chainId].vaults[vault].tokens["Deposit erc20"].decimals;
+        redeemTokenDecimals = mortgageContractsInfo[_chainId].vaults[vault].tokens["Stablecoin"].decimals;
+
+        // Get total supply
+        const totalSupplyArgs = [];
+        totalSupply = await runViewFunction(mortgageConversionVault, mortgageConversionVaultAbi, "totalSupply", totalSupplyArgs);
+
+        // Get preview redeem value
+        const previewRedeemArgs = [totalSupply];
+        previewRedeem = await runViewFunction(mortgageConversionVault, mortgageConversionVaultAbi, "previewRedeem", previewRedeemArgs);
+    }
+
+    // Convert to BigNumber
+    const totalSupplyBN = new BigNumber(totalSupply.toString());
+    const previewRedeemBN = new BigNumber(previewRedeem.toString());
+
+    // Convert to human-readable format (assuming decimals are correct)
+    const totalSupplyFromWei = totalSupplyBN.shiftedBy(-depositTokenDecimals);
+    const previewRedeemFromWei = previewRedeemBN.shiftedBy(-redeemTokenDecimals);
+
+    // Perform the division using BigNumber
+    const pricePerCoinBN = previewRedeemFromWei.div(totalSupplyFromWei);
+
+    // Convert the result back to a string
+    const _pricePerCoin = pricePerCoinBN.toString();
+
+    // Log the calculated price per coin
+    // console.log("Update price per coin calc: (previewRedeem)", previewRedeemFromWei.toString(), "/(totalSupply) ", totalSupplyFromWei.toString());
+    console.log("Update price per coin = ", _pricePerCoin);
+
+    // Set the new price per coin
+    pricePerCoin.set(_pricePerCoin);
+
+    return _pricePerCoin;
+}
+
+
+
+
+export async function transfer(tokenName, account, amount) {
+    let _hash;
+        try {
+            const gasPrice = await getGasPrice(); 
+            const providerNode = await getProviderNode();
+            const signer = providerNode.getSigner();
+            let chainId = await getChainId();
+            let userBalances = await getUserBalances();
+            const contract = userBalances[chainId]["stablecoin"][tokenName]["tokenContract"];
+  
+            const tokenContract: any = new ethers.Contract(contract, erc20Abi, signer);
+            const gasLimit = await tokenContract.estimateGas.transfer(account,BigNumber(amount).toFixed(),{ from: account });
+            const txResponse = await tokenContract.transfer(
+                account,
+                BigNumber(amount).toFixed(),
+                {
+                    gasLimit: gasLimit,
+                    gasPrice: gasPrice
+                }
+            );
+            console.log(txResponse.hash);
+            _hash = txResponse.hash;
+            const txReceipt = await txResponse.wait();
+            console.log(txReceipt);
+            return true
+        }
+        catch (error) {
+            console.log(error);
+            return false
+        }
+}
+
+
+
+export function txCanBeInitiated(lastTxAddedToRegister) {
+    let _chainId;
+    let unsubscribe = chainId.subscribe(value => {
+        _chainId = value;
+    });
+    unsubscribe();
+    let _user;
+    unsubscribe = user.subscribe(value => {
+        _user = value;
+    });
+    unsubscribe();
+    if (_user == "0x0000000000000000000000000000000000000000") {
+        content.set({"title": "Wallet not connected", "description": "Start by connecting your wallet in order to use Cat-in-a-Box's functionalities."});
+        visibility.set("block");
+        return false;
+    }
+    else if (!networkNameByChainId.hasOwnProperty(_chainId)) {
+        content.set({"title": "Wrong network", "description": "This network is not supported."});
+        visibility.set("block");
+        return false;
+    }/*
+    else if (lastTxAddedToRegister == false) {
+        content.set({"title": "Pending transaction", "description": "Please wait a moment until the previous transaction has been sent."});
+        visibility.set("block");
+        return false;
+    }*/
+    return true;
+}
+
+export async function getGasPrice() {
+    let _alchemyNode = await getRpcNode();
+    const speedFactor = 1.2; // TODO: change to one for production
+    const suggestedGasPrice = await _alchemyNode.eth.getGasPrice(function(e, r) {return r;})
+    const gasPrice = parseInt(suggestedGasPrice) * speedFactor;
+    return Math.round(gasPrice);
+}
+
+async function getRpcNode() {
+    let _alchemyNode;
+    const unsubscribe = alchemyNode.subscribe(value => {
+        _alchemyNode = value;
+    });
+    unsubscribe();
+    return _alchemyNode
+}
+
+async function getUser() {
+    let _user;
+    const unsubscribe = user.subscribe(value => {
+        _user = value;
+    });
+    unsubscribe();
+    return _user
+}
+
+async function getChainId() {
+    let _chainId;
+    let unsubscribe = chainId.subscribe(value => {
+        _chainId = value;
+    });
+    unsubscribe();
+    return _chainId
+}
+
+async function getProviderNode() {
+    let _providerNode;
+    const unsubscribe = providerNode.subscribe(value => {
+        _providerNode = value;
+    });
+    unsubscribe();
+    return _providerNode
+}
+
+async function getUserBalances() {
+    let _userBalances;
+    const unsubscribe = userBalances.subscribe(value => {
+        _userBalances = value;
+    });
+    unsubscribe();
+    return _userBalances
+}
+
+async function getMortgagePoolContract() {
+    let _mortgagePool;
+    const unsubscribe = mortgagePoolContractFunctions.subscribe(value => {
+        _mortgagePool = value;
+    });
+    unsubscribe();
+    return _mortgagePool
+}
+
+async function getDropDownSelectionsNames() {
+    let _dropDownSelectionsNames;
+    const unsubscribe = dropDownSelectionsNames.subscribe(value => {
+        _dropDownSelectionsNames = value;
+    });
+    unsubscribe();
+    return _dropDownSelectionsNames
+}
+
+async function getDropDownSelections() {
+    let _dropDownSelections;
+    const unsubscribe = dropDownSelections.subscribe(value => {
+        _dropDownSelections = value;
+    });
+    unsubscribe();
+    return _dropDownSelections
+}
+
+async function getContractAddresses() {
+    let _contractAddresses;
+    const unsubscribe = contractAddresses.subscribe(value => {
+        _contractAddresses = value;
+    });
+    unsubscribe();
+    return _contractAddresses
+}
+
+export function toTimer(inputtimer, blocktime) {
+    inputtimer -= blocktime;
+    const hours = Math.floor(inputtimer/ 60 / 60);
+    const minutes = Math.floor((inputtimer/ 60) % 60);
+    const seconds = Math.floor((inputtimer) % 60);
+    const hourString = String(hours).padStart(2, "0");
+    const minuteString = String(minutes).padStart(2, "0");
+    const secondString = String(seconds).padStart(2, "0");
+
+    
+    const timerString = `${hourString}:${minuteString}:${secondString}`;
+    return(timerString);
+
+}
+
+
+// Helper function to extract substring
+export function getSubStringAfterDash(str) {
+    const parts = str.split("-");
+    // Check if there is a part after the dash
+    return parts.length > 1 ? parts[1].trim() : str;
+}
+
+export function getSubStringBeforeDash(str) {
+    const parts = str.split("-");
+    // Return the part before the dash
+    return parts.length > 1 ? parts[0].trim() : str;
+}
+
+export function toTitleCase(str) {
+    if (typeof str !== 'string') {
+        // Return an empty string or some default value
+        // if the input is not a string
+        return '';
+    }
+    return str.replace(/\w\S*/g, function(txt) {
+        return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    });
+}
+
+
+

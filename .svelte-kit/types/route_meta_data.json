@@ -1,0 +1,18 @@
+{
+	"/": [],
+	"/borrow": [],
+	"/borrow/[slug]": [],
+	"/convert": [],
+	"/convert/[slug]": [],
+	"/dashboard": [],
+	"/dashboard/[slug]": [],
+	"/docs": [],
+	"/docs/[slug]": [],
+	"/earn": [],
+	"/earn/[slug]": [],
+	"/system": [],
+	"/testing": [],
+	"/test": [],
+	"/walletConnect": [],
+	"/[slug]": []
+}
