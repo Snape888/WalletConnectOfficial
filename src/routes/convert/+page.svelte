@@ -12,6 +12,8 @@
 
     //on chain-data reads
     import { 
+        user,
+        chainId,
         swapToken,
         selectedSellableErc20Balance,
         swapRecieveToken,
@@ -50,7 +52,6 @@
     import { BigNumber } from "bignumber.js";
 
     /// Boilerplate Web3 imports
-    import { triggerCdpsAppContractCalls, user, chainId, alchemyNode } from "$lib/boilerplate/js/stores/wallet";
     import erc20Abi from "$lib/boilerplate/abi/erc-20.json";
     import { _round } from "$lib/boilerplate/js/core";
     import { mortgageContractsInfo } from "$lib/project/js/contractAddresses";
@@ -64,7 +65,7 @@
     //$: selectedVault, updateSelectedVaultPrice();
 
     //Reactive balances of currently selected vaults
-    $: depositErc20Balance ="Balance "+ $walletBalances[$chainId]?.vaults[$dropDownSelectionsNames.FAVSwapDepositVault]?.tokens["Deposit erc20"]?.balance ?? 'Loading...';
+    $: depositErc20Balance ="Balance "+ $walletBalances[Number($chainId)]?.vaults[$dropDownSelectionsNames.FAVSwapDepositVault]?.tokens["Deposit erc20"]?.balance ?? 'Loading...';
 
     //Reactive currently selected vaults
     $: erc20DepositToken = $depositSwapVaults && $dropDownSelectionsNames.FAVSwapDepositVault in $depositSwapVaults
@@ -102,28 +103,28 @@
     }
 
     function findVaultById(event) {
-    handleSwapTokenSelection();
-    
-    const selectedVaultId = event.detail;
-    console.log("selectedVaultId = ", selectedVaultId);
-    console.log("$depositSwapVaults = ", $depositSwapVaults);
+        handleSwapTokenSelection();
+        
+        const selectedVaultId = event.detail;
+        console.log("selectedVaultId = ", selectedVaultId);
+        console.log("$depositSwapVaults = ", $depositSwapVaults);
 
-    // Find the index of the element with the specified id
-    const index = $depositSwapVaults.findIndex(token => token.id === selectedVaultId);
+        // Find the index of the element with the specified id
+        const index = $depositSwapVaults.findIndex(token => token.id === selectedVaultId);
 
-    if (index != -1) {
-        selectedVault = index;
-        $dropDownSelections.FAVSwapDepositVault = event.detail;
-        updateCurrentSelectedDropdowns();
-        console.log("FAVSwapDepositVault = ", $dropDownSelectionsNames.FAVSwapDepositVault);
+        if (index != -1) {
+            selectedVault = index;
+            $dropDownSelections.FAVSwapDepositVault = event.detail;
+            updateCurrentSelectedDropdowns();
+            console.log("FAVSwapDepositVault = ", $dropDownSelectionsNames.FAVSwapDepositVault);
 
-        // Check if the index is higher than the number of vaults
-        const isIndexExceeding = index >= Object.keys(mortgageContractsInfo[$chainId].vaults).length;
-        updatePricePerCoin($dropDownSelectionsNames.FAVSwapDepositVault, isIndexExceeding);
+            // Check if the index is higher than the number of vaults
+            const isIndexExceeding = index >= Object.keys(mortgageContractsInfo[Number($chainId)].vaults).length;
+            updatePricePerCoin($dropDownSelectionsNames.FAVSwapDepositVault, isIndexExceeding);
+        }
+        checkAllowances();
+        console.log("$dropDownSelections.FAVSwapDepositVault = ", $dropDownSelections.FAVSwapDepositVault);
     }
-
-    console.log("$dropDownSelections.FAVSwapDepositVault = ", $dropDownSelections.FAVSwapDepositVault);
-}
 
     function selectSwapToken(){
         showSwapTokenSelection = !showSwapTokenSelection;
@@ -167,9 +168,9 @@
     async function handleRedeem(shares, nftId){
         // let depositAmount = toWei(swapField01, $contractAddresses.depositErc20Decimals);
         const vault = $redeemableNFTs[selectedRedemptionNFT].vaultName; 
-        const conversionVaultDecimals = mortgageContractsInfo[$chainId].vaults[vault].coreContracts["Mortgage Conversion Vault"].decimals;
-        const erc20Decimals = mortgageContractsInfo[$chainId].vaults[vault].tokens["Deposit erc20"].decimals;
-        const mortgageConversionVaultContract = mortgageContractsInfo[$chainId].vaults[vault].coreContracts["Mortgage Conversion Vault"].address;
+        const conversionVaultDecimals = mortgageContractsInfo[Number($chainId)].vaults[vault].coreContracts["Mortgage Conversion Vault"].decimals;
+        const erc20Decimals = mortgageContractsInfo[Number($chainId)].vaults[vault].tokens["Deposit erc20"].decimals;
+        const mortgageConversionVaultContract = mortgageContractsInfo[Number($chainId)].vaults[vault].coreContracts["Mortgage Conversion Vault"].address;
 
 
         console.log("handleRedeem shares = ", shares);
@@ -220,14 +221,13 @@
 
     async function handleSwap(swapApproveToggle) {
 
-
         let contractName;
         let swapToken;
         let convertAbi;
 
-        console.log("handleSwap: $dropDownSelections.FAVSwapDepositVault = ", $dropDownSelections.FAVSwapDepositVault, " Object.keys(mortgageContractsInfo[$chainId]?.vaults).length = ", Object.keys(mortgageContractsInfo[$chainId]?.vaults).length);
+        console.log("handleSwap: $dropDownSelections.FAVSwapDepositVault = ", $dropDownSelections.FAVSwapDepositVault, " Object.keys(mortgageContractsInfo[$chainId]?.vaults).length = ", Object.keys(mortgageContractsInfo[Number($chainId)]?.vaults).length);
         //determine if FAV token is being swapped
-        if($dropDownSelections.FAVSwapDepositVault > (Object.keys(mortgageContractsInfo[$chainId]?.vaults).length-1)){
+        if($dropDownSelections.FAVSwapDepositVault > (Object.keys(mortgageContractsInfo[Number($chainId)]?.vaults).length-1)){
             console.log("handleSwap FAV token swap detected");
             // const vaultChild = coreContracts;
             contractName = "Mortgage Fee Conversion Vault";
@@ -245,14 +245,14 @@
         console.log("mortgageConversionVaultAbi = ", mortgageConversionVaultAbi);
 
         // get the mortgage and erc20 contract addresses of the currently selected vault/dropdown
-        const contract = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVSwapDepositVault].coreContracts[contractName].address;
-        const depositTokenContract = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVSwapDepositVault].tokens[swapToken].address;
-        const depositTokenDecimals = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVSwapDepositVault].tokens[swapToken].decimals;
+        const contract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVSwapDepositVault].coreContracts[contractName].address;
+        const depositTokenContract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVSwapDepositVault].tokens[swapToken].address;
+        const depositTokenDecimals = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVSwapDepositVault].tokens[swapToken].decimals;
         
         
         updateContractAddresses();
         if (swapApproveToggle== "Approve"){
-            // console.log("Handle swap: Run Approve function");
+            console.log("Handle swap: Run Approve function");
             // console.log("Handle swap: contract addresses = ", $contractAddresses);
             // console.log("Handle swap: swapField01 ", swapField01);
 
@@ -278,7 +278,7 @@
         } else if (swapApproveToggle== "Swap") {
             console.log("Run Swap function");
             console.log("contract addresses = ", $contractAddresses);
-            console.log("token decimals = ", $contractAddresses.depositTokenDecimals);
+            console.log("token decimals = ", $contractAddresses.depositErc20Decimals);
             console.log("mortgageConversionVaultAbi = ", mortgageConversionVaultAbi);
             
 
@@ -304,11 +304,14 @@
 
            
     }
+
+
     let swapField01 = 0;
     let depositErc20ButtonLabel = 'Swap'; // Initialize the button label
 
     // Reactive statement to update the button label
-    $: if ($FAVSwaperc20DepositAllowance !== null && swapField01 > $FAVSwaperc20DepositAllowance) {
+    $: if ($FAVSwaperc20DepositAllowance !== null && swapField01 > Number($FAVSwaperc20DepositAllowance)) {
+        console.log("FAVSwaperc20DepositAllowance = ", $FAVSwaperc20DepositAllowance," swapField01 = ", swapField01);
         depositErc20ButtonLabel = 'Approve';
     } else {
         depositErc20ButtonLabel = 'Swap';
@@ -340,7 +343,7 @@
     let recievePreview = 0;
     function redemptionRecievePreview(){  
             
-        recievePreview = $pricePerCoin*redeemField;
+        recievePreview = Number($pricePerCoin)*redeemField;
         console.log(recievePreview);  
 
     }
@@ -349,12 +352,12 @@
         let _tempBalance = 0;
         // if tokenSelection ticker does not equal FAV
         if ($redeemableNFTs($dropDownSelections.FAVSwapDepositVault).ticker != "FAV"){
-            _tempBalance = $walletBalances[$chainId]?.vaults[$dropDownSelectionsNames.FAVSwapDepositVault]?.tokens[$depositSwapVaults[selectedVault].name]?.balance || "Loading...";
+            _tempBalance = $walletBalances[Number($chainId)]?.vaults[$dropDownSelectionsNames.FAVSwapDepositVault]?.tokens[$depositSwapVaults[selectedVault].name]?.balance || "Loading...";
         }else{
-            _tempBalance = $walletBalances[$chainId]?.vaults[$dropDownSelectionsNames.FAVSwapDepositVault]?.tokens[$depositSwapVaults[selectedVault].name]?.balance || "Loading...";
+            _tempBalance = $walletBalances[Number($chainId)]?.vaults[$dropDownSelectionsNames.FAVSwapDepositVault]?.tokens[$depositSwapVaults[selectedVault].name]?.balance || "Loading...";
         }
         
-        swapTokenBlance = "Balance " + _tempBalance;
+        swapTokenBalance = "Balance " + _tempBalance;
     }
 
 </script>
@@ -437,8 +440,9 @@
                     border="border"
                     paddingX={false}
                     paddingY="py-1.5"
-                    backgroundColor="bg-whitePrim-light dark:whitePrim-dark"
+                    backgroundColor="bg-whitePrim-light dark:bg-whitePrim-dark"
                     borderColor={false} 
+                    type="button"
                     >
                     <span>Learn more</span>
                 </Button>
@@ -461,7 +465,12 @@
             borderColor={false}
             >
             {#if $depositSwapVaults && $depositSwapVaults.length > selectedVault && $depositSwapVaults[$dropDownSelections.FAVSwapDepositVault].tokenIcon}
-            <form on:submit|preventDefault={handleSwap(depositErc20ButtonLabel)}>
+            <form on:submit|preventDefault={async (event) => {
+                // Prevent the form from submitting traditionally
+                event.preventDefault();
+                // Call your async function here
+                await handleSwap(depositErc20ButtonLabel);
+              }}>
                 <div class="sellERC20Content">
                     <div class="upperTitle flex w-full px-3 justify-between items-center">
                         <div class="leftHandGroup text-sm">
@@ -496,12 +505,12 @@
                         dropDownArrow={true}
             
                         leftFooterText={true}
-                        leftFooterTextLabel={"Balance "+ $walletBalances[$chainId]?.vaults[$dropDownSelectionsNames.FAVSwapDepositVault]?.tokens[$depositSwapVaults[selectedVault].name]?.balance || "Loading..."}
+                        leftFooterTextLabel={"Balance "+ $walletBalances[Number($chainId)]?.vaults[$dropDownSelectionsNames.FAVSwapDepositVault]?.tokens[$depositSwapVaults[selectedVault].name]?.balance || "Loading..."}
                         
                         
                         inputField={true} 
                         bind:value={swapField01}
-                        inputPlaceholderValue = "0"
+                        inputPlaceholderValue = {0}
                         
                         rightFooterText={true}
                         rightFooterTextLabel="MAX">
@@ -539,7 +548,7 @@
                         leftFooterTextLabel="" 
             
                         inputField={true}
-                        value={_round(swapField01*$pricePerCoin, 7)}
+                        value={_round(swapField01*Number($pricePerCoin), 7)}
                         inputDisabled={true}
             
                         rightFooterText={true}
@@ -595,8 +604,9 @@
                     border="border"
                     paddingX={false}
                     paddingY="py-1.5"
-                    backgroundColor="bg-whitePrim-light dark:whitePrim-dark"
+                    backgroundColor="bg-whitePrim-light dark:bg-whitePrim-dark"
                     borderColor={false}
+                    type="button"
                     >
                     <span>Learn more</span>
                 </Button>
@@ -654,7 +664,7 @@
 
                         inputField={true}
                         bind:value={redeemField}
-                        inputPlaceholderValue = "0"
+                        inputPlaceholderValue = {0}
 
                         rightFooterText={true}
                         rightFooterTextLabel="MAX">
@@ -678,6 +688,7 @@
                             paddingY="py-1.5"
                             backgroundColor={false}
                             borderColor={false} 
+                            type="button"
                             >
                             <span>Redeem</span>
                         </Button>

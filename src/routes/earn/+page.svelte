@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     
     // Svelte imports
     import { slide } from 'svelte/transition';
@@ -34,12 +34,13 @@
 
     /// Boilerplate Web3 imports
     import { _round } from "$lib/boilerplate/js/core";
-    import { triggerCdpsAppContractCalls, user, chainId, alchemyNode } from "$lib/boilerplate/js/stores/wallet";
     import erc20Abi from "$lib/boilerplate/abi/erc-20.json";
 
 
     //on chain-data reads
     import { 
+        user,
+        chainId,
         depositVaults,
         selectedFAVstableBalance,
         selectedFAVVaultUtilisation,
@@ -67,7 +68,8 @@
     import {
         depositERC20,
         exchangeFAVStables,
-        redeemIOU
+        redeemIOU,
+        createRedeemableIOUsArray
     } from '$lib/project/js/FAVfunctionCalls.ts';
     
     // Boilerplate Components
@@ -98,8 +100,8 @@
     let selectedIOUName = 0;
 
     //Reactive balances of currently selected vaults
-    $: FAVstableBalance ="Balance "+ $walletBalances[$chainId]?.vaults[$dropDownSelectionsNames.FAVEarnDepositVault]?.tokens["Mortgage Pool"]?.balance ?? 'Loading...';
-    $: depositStableBalance ="Balance "+ $walletBalances[$chainId]?.vaults[$dropDownSelectionsNames.FAVEarnDepositVault]?.tokens["Stablecoin"]?.balance ?? 'Loading...';
+    $: FAVstableBalance ="Balance "+ $walletBalances[Number($chainId)]?.vaults[$dropDownSelectionsNames.FAVEarnDepositVault]?.tokens["Mortgage Pool"]?.balance ?? 'Loading...';
+    $: depositStableBalance ="Balance "+ $walletBalances[Number($chainId)]?.vaults[$dropDownSelectionsNames.FAVEarnDepositVault]?.tokens["Stablecoin"]?.balance ?? 'Loading...';
 
 
     // Function to handle token selection
@@ -226,13 +228,13 @@
 
 
 
-    let depositField01 = "0";
-    let exchangeField01 = "0";
+    let depositField01: number | null = null;
+    let exchangeField01: number | null = null;
 
     let stablesDepositButtonLabel = 'Deposit'; // Initialize the button label
 
     // Reactive statement to update the button label
-    $: if ($FAVEarnStablecoinDepositAllowance !== null && depositField01 > $FAVEarnStablecoinDepositAllowance) {
+    $: if ($FAVEarnStablecoinDepositAllowance !== null && Number(depositField01) > Number($FAVEarnStablecoinDepositAllowance)) {
         stablesDepositButtonLabel = 'Approve';
     } else {
         stablesDepositButtonLabel = 'Deposit';
@@ -265,8 +267,8 @@
         // console.log("mortgagePoolContractAbi = ", mortgagePoolContractAbi);
 
         // get the mortgage and stablecoin contract addresses of the currently selected vault/dropdown
-        const contract = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVEarnDepositVault].coreContracts["Mortgage Pool"].address;
-        const stablecoinContract = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVEarnDepositVault].tokens["Stablecoin"].address;
+        const contract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVEarnDepositVault].coreContracts["Mortgage Pool"].address;
+        const stablecoinContract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVEarnDepositVault].tokens["Stablecoin"].address;
         
         
         updateContractAddresses();
@@ -327,8 +329,8 @@
 
         // console.log("mortgagePoolContractAbi = ", mortgagePoolContractAbi);
 
-        const contract = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVEarnExchangeStable].coreContracts["Mortgage Pool"].address;
-        const stablecoinDecimals = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVEarnDepositVault].tokens["Stablecoin"].decimals;
+        const contract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVEarnExchangeStable].coreContracts["Mortgage Pool"].address;
+        const stablecoinDecimals = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVEarnDepositVault].tokens["Stablecoin"].decimals;
         
         updateContractAddresses();
 
@@ -345,10 +347,11 @@
             let result = await executeFunction($contractAddresses.mortgagePoolAddress, mortgagePoolContractAbi, "burnToGetOutInLine", args);
 
             if (result) {
-                await getWalletBalances();
+                await checkAllowances();
+                $walletBalances = await getWalletBalances();
+                createRedeemableIOUsArray();
                 console.log("Transaction successful");
                 $txProcessMessage = false;
-                // Additional logic on success
             } else {
                 console.error("Transaction failed");
                 $txProcessMessage = false;
@@ -360,7 +363,7 @@
            
     }
     async function handleRedeem() {
-        const contract = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVEarnRedeemIOU].coreContracts["Mortgage Pool"].address;
+        const contract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVEarnRedeemIOU].coreContracts["Mortgage Pool"].address;
         // console.log("mortgagePoolContractAbi = ", mortgagePoolContractAbi);
 
         updateContractAddresses();
@@ -497,8 +500,9 @@
                     border="border"
                     paddingX={false}
                     paddingY="py-1.5"
-                    backgroundColor="bg-whitePrim-light dark:whitePrim-dark"
+                    backgroundColor="bg-whitePrim-light dark:bg-whitePrim-dark"
                     borderColor={false}
+                    type="button"
                     >
                     <span>Learn more</span>
                 </Button>
@@ -519,7 +523,12 @@
             pagination={false}
             borderColor={false}
             >
-            <form id="depositStablcoinsForm" on:submit|preventDefault={handleDeposit(stablesDepositButtonLabel)}>
+            <form id="depositStablcoinsForm" on:submit|preventDefault={async (event) => {
+                // Prevent the form from submitting traditionally
+                event.preventDefault();
+                // Call your async function here
+                await handleDeposit(stablesDepositButtonLabel);
+                }}>            
                 <div class="depositContent">
                     <div class="upperTitle text-blackPrim-light dark:text-blackPrim-dark flex w-full px-3 justify-between items-center">
                         <div class="leftHandGroup text-sm font-BarlowRegular">
@@ -540,7 +549,7 @@
                             </button>
                         </div>
                     </div>
-                    {#if $connectedAndSupported && $depositVaults && $depositVaults.length > selectedVault && $depositVaults[$dropDownSelections.FAVEarnDepositVault].tokenIcon}
+                    {#if $depositVaults && $depositVaults.length > selectedVault && $depositVaults[$dropDownSelections.FAVEarnDepositVault].tokenIcon}
                         <PaymentInputField 
                             on:dropDownClicked={() => selectDepositVault()}
                             on:autoFillClicked={(event) => matchBalance("depositField01", event.detail)}
@@ -555,7 +564,7 @@
                             leftFooterText={true}
                             leftFooterTextLabel={depositStableBalance}
                             inputField={true}
-                            inputPlaceholderValue={depositField01}
+                            inputPlaceholderValue={0}
                             rightFooterText={true}
                             rightFooterTextLabel="MAX"
 
@@ -580,7 +589,7 @@
                             </button>
                         </div>
                     </div>
-                    {#if  $connectedAndSupported && $depositVaults && $depositVaults.length > selectedVault && $depositVaults[selectedVault].tokenIcon}
+                    {#if $depositVaults && $depositVaults.length > selectedVault && $depositVaults[selectedVault].tokenIcon}
                     <PaymentInputField
                         
 
@@ -588,7 +597,7 @@
                         cornerRadius={$roundedCornersSm}
 
                         tokenSelection={true}
-                        token={mortgageContractsInfo[$chainId].vaults[$depositVaults[selectedVault].ticker].coreContracts["Mortgage Pool"].tokenIcon}
+                        token={mortgageContractsInfo[Number($chainId)].vaults[$depositVaults[selectedVault].ticker].coreContracts["Mortgage Pool"].tokenIcon}
             
                         textLabel="{$depositVaults[selectedVault].ticker} Stablecoin"
                         dropDownArrow={false}
@@ -599,17 +608,19 @@
                         inputField={true}
                         bind:value={depositField01}
                         inputDisabled={true}
-
+                        inputPlaceholderValue={0}
                         rightFooterText={false}
                         rightFooterTextLabel=""
                     
                     ></PaymentInputField>
                     {/if}
+                    {#if $earnVaultSummary}
                     <div class="loanTechDetails px-3 text-blackPrim-light dark:text-blackPrim-dark font-BarlowRegular text-xs">
                         <div class="tokensAvailable">Current system APR: <span class="font-BarlowBold"> {$earnVaultSummary.APR ?? "Calculating "}%</span></div>
                         <div class="poolUtilisation">Utilisation: <span class="font-BarlowBold">{(Number($earnVaultSummary.poolUtilisation))/100 ?? "Calculating "}%</span></div>
                         <div class="disclaimer">Total supply: <span class="font-BarlowBold">{_round($earnVaultSummary.totalSupply, 7) ?? "Calculating..."}</span></div>
                     </div>
+                    {/if}
                 <div class="burnStables flex justify-center items-center">
                         <Button 
 
@@ -651,8 +662,9 @@
                     border="border"
                     paddingX={false}
                     paddingY="py-1.5"
-                    backgroundColor="bg-whitePrim-light dark:whitePrim-dark"
+                    backgroundColor="bg-whitePrim-light dark:bg-whitePrim-dark"
                     borderColor={false}
+                    type="button"
                     >
                     <span>Learn more</span>
                 </Button>
@@ -693,7 +705,7 @@
                             </button>
                         </div>
                     </div>
-                    {#if $connectedAndSupported && $exchangeDepositVaults && $exchangeDepositVaults.length > selectedFAVStable && $exchangeDepositVaults[$dropDownSelections.FAVEarnExchangeStable].tokenIcon}
+                    {#if $exchangeDepositVaults && $exchangeDepositVaults.length > selectedFAVStable && $exchangeDepositVaults[$dropDownSelections.FAVEarnExchangeStable].tokenIcon}
                     <PaymentInputField 
                         on:dropDownClicked={() => selectFAVStableToken()}
                         on:autoFillClicked={(event) => matchBalance("exchangeField01", event.detail)}
@@ -711,7 +723,7 @@
                         leftFooterTextLabel="Balance {$exchangeDepositVaults[$dropDownSelections.FAVEarnExchangeStable].balance}"
 
                         inputField={true}
-                        inputPlaceholderValue = "0"
+                        inputPlaceholderValue ={0}
 
                         rightFooterText={true}
                         rightFooterTextLabel="MAX"
@@ -737,7 +749,7 @@
                             </button>
                         </div>
                     </div>
-                    {#if $connectedAndSupported && $exchangeDepositVaults && $exchangeDepositVaults.length > selectedFAVStable && $exchangeDepositVaults[$dropDownSelections.FAVEarnExchangeStable].tokenIcon}
+                    {#if $exchangeDepositVaults && $exchangeDepositVaults.length > selectedFAVStable && $exchangeDepositVaults[$dropDownSelections.FAVEarnExchangeStable].tokenIcon}
                     <PaymentInputField on:dropDownClicked={() => selectFAVStableToken()}
 
                         textColor={false}
@@ -754,7 +766,7 @@
                         inputField={true}
                         bind:value={exchangeField01}
                         inputDisabled={true}
-
+                        inputPlaceholderValue={0}
                         rightFooterText={false}
                         rightFooterTextLabel=""
                     
@@ -804,8 +816,9 @@
                     border="border"
                     paddingX={false}
                     paddingY="py-1.5"
-                    backgroundColor="bg-whitePrim-light dark:whitePrim-dark"
+                    backgroundColor="bg-whitePrim-light dark:bg-whitePrim-dark"
                     borderColor={false}
+                    type="button"
                     >
                     <span>Learn more</span>
                 </Button>
@@ -846,7 +859,7 @@
                         </button>
                     </div>
                 </div>
-                {#if $connectedAndSupported && $redeemableIOUBalances && $redeemableIOUBalances.length > selectedIOU && $redeemableIOUBalances[$dropDownSelections.FAVEarnRedeemIOU].ticker}
+                {#if $redeemableIOUBalances && $redeemableIOUBalances.length > selectedIOU && $redeemableIOUBalances[$dropDownSelections.FAVEarnRedeemIOU].ticker}
                     <PaymentInputField on:dropDownClicked={() => selectIOU()}
                         
                         textColor={false}
@@ -862,7 +875,7 @@
 
                         inputField={true}
                         bind:value={redeemField01}
-                        inputPlaceholderValue = "0"
+                        inputPlaceholderValue = {0}
 
                         rightFooterText={true}
                         rightFooterTextLabel="MAX"
@@ -904,6 +917,7 @@
                         paddingY="py-1.5"
                         backgroundColor={false}
                         borderColor={false}   
+                        type="button"
                         
                         ><span>Redeem</span>
                     </Button>

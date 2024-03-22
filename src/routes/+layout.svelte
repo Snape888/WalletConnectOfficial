@@ -13,6 +13,8 @@
   import Countup from "svelte-countup";
   import { JsonRpcProvider } from "@ethersproject/providers";
 
+  import {account, provider, chains} from "$lib/web3modal";
+
   /// Boilerplate Web3 imports
   import {
     getWalletBalances,
@@ -46,17 +48,17 @@
     createMyLoansArray,
     getPreviewStatsForEarnDeposit,
     updateExchangeRates,
-    getSupportedNetworks
+    getSupportedNetworks,
+    createRedeemableIOUsArray
   } from "$lib/project/js/FAVfunctionCalls.ts";
 
   import {
     triggerCdpsAppContractCalls,
-    alchemyNode,
-    user,
-    chainId,
-    providerNode,
+    alchemyNode,    
+    initializeWalletConnect
   } from "$lib/boilerplate/js/stores/wallet";
-  import Wallet from "$lib/boilerplate/components/Wallet.svelte";
+
+  
 
   /// Project Web3 imports
   import {
@@ -83,7 +85,10 @@
     supportedNetworks,
     supportedNetworkNames,
     txProcessMessage,
-    connectedAndSupported
+    connectedAndSupported,
+    user,
+    chainId,
+    providerNode
   } from "$lib/project/js/stores/projectDynamicValues.ts";
   import mortgagePoolContractAbi from "$lib/project/abi/mortgagepool.sol/mortgagepool.json";
   import { mortgageContractsInfo } from "$lib/project/js/contractAddresses";
@@ -114,7 +119,7 @@
     triggerCdpsAppContractCalls.subscribe((value) => {
     if (value && $connectedAndSupported) {
       console.log("executing contract calls");
-     executeContractCalls();
+     loadFavUser();
     }
     });
   }
@@ -140,19 +145,58 @@
 
 
   let showReferralLink = false; // Initialize as boolean
-
+  let accountAddress = '';
 // Reactive statement to update showReferralLink based on the user's wallet address
 $: showReferralLink = 
   $user && $user !== "0x0000000000000000000000000000000000000000" ? true : false;
 
 
+  let accountLoaded = false;
+  let previousAddress = '';
+  // Reactive statement to wait for account to be loaded and detect user changes
+  $: if ($account && $account.address && $account.chainId && $provider && Object.keys(alchemyNodeKeyByChainId).length > 0) {
+    if ($account.address !== previousAddress) {
+      console.log("User changed, triggering user loading");
+      $user = $account.address;
+      $chainId = $account.chainId;
+      $providerNode = $provider;
+      accountLoaded = true;
+      loadFavUser();
+      handleRefLink();
+      previousAddress = $account.address;
+    } else if (!accountLoaded) {
+      console.log("About to trigger user loading");
+      $user = $account.address;
+      $chainId = $account.chainId;
+      $providerNode = $provider;
+      accountLoaded = true;
+      loadFavUser();
+      handleRefLink();
+    }
+  }
+
+
   /// Web3 functions ---------------------------------------------------------
 
   onMount(async () => {
+    console.log("On Mount started in +layout");
+
+    // Subscribe to the account store
+    account.subscribe(value => {
+      accountAddress = value?.address || '';
+    });
+
+    
+
+   // await initializeWalletConnect();
     // Start the initial fav tokenrotation
     startAnimation(); // Start the initial animation
     //toggleuse("mint");
 
+    
+  });
+
+  async function handleRefLink(){
     let path = window.location.pathname;
     let ref = path.split("/").pop();
     console.log("ref1", ref);
@@ -185,8 +229,13 @@ $: showReferralLink =
         document.cookie = `referral=${ref}; expires=Fri, 31 Dec 2025 23:59:59 GMT; path=/`;
       } else {
         async function AddyFromEns() {
-          console.log('pullingENS');
-          const provider = new JsonRpcProvider(get(providerNode));
+        console.log('pullingENS');
+        const providerValue = $providerNode;
+        console.log('Provider node = ', $providerNode);
+        console.log('chainId = ', $chainId);
+        if (providerValue !== null && $chainId) {
+          const providerUrl = alchemyNodeKeyByChainId[Number($chainId)]; // Get the provider URL
+          const provider = new JsonRpcProvider(providerUrl);
           console.log('provider pulled');
           const ensName = ref ? await provider.resolveName(ref) : undefined;
           console.log("ensName", ensName);
@@ -196,7 +245,12 @@ $: showReferralLink =
           } else {
             referUser.set(undefined);
           }
+        } else {
+          console.error('Provider value is null');
+          // Handle the case when the provider value is null
+          // You can throw an error, provide a fallback provider, or take appropriate action
         }
+      }
 
         console.log("format", cookies.referral);
         document.cookie = `referral=${ref}; expires=Fri, 31 Dec 2025 23:59:59 GMT; path=/`;
@@ -217,13 +271,13 @@ $: showReferralLink =
               }*/
      // $referUser = cookies.referral;
     }
-  });
+  }
 
 
 
   // Populate FAV Earn dropdowns
   async function createDepositVaultsArray() {
-    const networkVaults = mortgageContractsInfo[$chainId].vaults;
+    const networkVaults = mortgageContractsInfo[Number($chainId)].vaults;
     const depositVaultsArray: any[] = [];
     let i = 0; // Initialize the counter outside the loops
 
@@ -247,56 +301,12 @@ $: showReferralLink =
     console.log("depositVaults = ", $depositVaults);
   }
 
-  async function createRedeemableIOUsArray() {
-    const networkVaults = mortgageContractsInfo[$chainId].vaults;
-    const _redeemableIOUBalances:  any[] = [];
-    let i = 0; // Initialize the counter outside the loops
-
-    for (const vaultKey in networkVaults) {
-      let contract = mortgageContractsInfo[$chainId].vaults[vaultKey].coreContracts["Mortgage Pool"].address;
-
-      let args = [$user];
-      let result = await runViewFunction( contract, mortgagePoolContractAbi, "mySizeWaitingForExit", args );
-      const balance = fromWei(result, 18);
-      // get redeemable value of current vault
-      let stablecoinContract = mortgageContractsInfo[$chainId].vaults[vaultKey].tokens["Stablecoin"].address;
-      args = [contract];
-      result = await runViewFunction(stablecoinContract, erc20Abi, "balanceOf", args );
-      const redeemable = fromWei(result, 18);
-
-      
-      // stablecoin ticker
-      let stablecoin = mortgageContractsInfo[$chainId].vaults[vaultKey].tokens["Stablecoin"].ticker;
-
-
-      if (Number(balance) > 0){
-        const vault = networkVaults[vaultKey];
-        _redeemableIOUBalances.push({
-        id: i++,
-        tokenIcon: "/utilityTokens/FAVClaim " + vaultKey + ".svg",
-        ticker: vault.ticker,
-        tokenGreyed: false,
-        available: balance, // Placeholder for current APRs
-        availableGreyed: true,
-        repayInToken: "",
-        repayInTokenGreyed: true,
-        feeNote: "",
-        feeNoteGreyed: true,  
-        redeemable: redeemable,
-        stablecoin: stablecoin
-
-        });
-      }
-    }
-
-    $redeemableIOUBalances = _redeemableIOUBalances;
-    console.log("redeemableIOUsBalances = ", $redeemableIOUBalances);
-  }
+  
 
   // Populate FAV Swap dropdowns
   // Populate with depositable erc20a
   async function createDepositSwapVaultsArray() {
-    const networkVaults = mortgageContractsInfo[$chainId].vaults;
+    const networkVaults = mortgageContractsInfo[Number($chainId)].vaults;
     const depositSwapVaultsObject:  any[] = [];
 
     let i = 0; // Initialize the counter
@@ -349,7 +359,7 @@ $: showReferralLink =
   }
   // Populate with depositable erc20a
   async function createBorrowVaultsArray() {
-    const networkVaults = mortgageContractsInfo[$chainId].vaults;
+    const networkVaults = mortgageContractsInfo[Number($chainId)].vaults;
     const borrowVaultsObject: any[] = [];
 
     let i = 0; // Initialize the counter
@@ -359,18 +369,27 @@ $: showReferralLink =
 
       /// trigger viewFunction to get the available tokens
 
-      let contract = mortgageContractsInfo[$chainId].vaults[vaultKey].coreContracts["Mortgage Pool"].address;
-
+      let contract = mortgageContractsInfo[Number($chainId)].vaults[vaultKey].coreContracts["Mortgage Pool"].address;
+      let depositErc20Decimals = mortgageContractsInfo[Number($chainId)].vaults[vaultKey].tokens["Deposit erc20"].decimals;
+      
       let args = [];
-      let result = await runViewFunction( contract, mortgagePoolContractAbi, "freeCoins", args,);
+      console.log("createBorrowVaultsArray run freeCoins, contract = ", contract, " args = ", args);
+      let freeCoins = await runViewFunction({
+          contractAddress: contract,
+          abi: mortgagePoolContractAbi,
+          functionName: 'freeCoins',
+          args: [],
+      }) as number[];
 
+      console.log("createBorrowVaultsArray freeCoins = ", freeCoins);
 
       borrowVaultsObject.push({
         id: i, // Use the counter as the id
         tokenIcon: vault.tokens["Deposit erc20"].tokenIcon,
         ticker: vault.tokens["Deposit erc20"].ticker,
         tokenGreyed: false,
-        available: _round(fromWei(result[0], 18), 4) + " available |", // Placeholder for current APRs
+        // available: _round(fromWei(Number(freeCoins)[0], 18), 4) + " available |", // Placeholder for current APRs
+        available: _round(fromWei(Number(freeCoins[0]), depositErc20Decimals), 6) + " available |", 
         stablecoinIcon: vault.tokens["Stablecoin"].tokenIcon,
         availableGreyed: true,
         repayInToken: "repay in " + vault.tokens["Stablecoin"].ticker,
@@ -387,7 +406,7 @@ $: showReferralLink =
   }
 
   async function createRedeemNFTArray() {
-    const networkNFTs = $walletBalances[$chainId].vaults;
+    const networkNFTs = $walletBalances[Number($chainId)].vaults;
     let redeemableNFTsArray: any[] = [];
     let counter=0;
     for (const vaultKey in networkNFTs) {
@@ -402,7 +421,7 @@ $: showReferralLink =
         for (const id of conversionTickets.ownedIds) {
           try {
             const depositErc20Decimals =
-              mortgageContractsInfo[$chainId].vaults[vaultKey].tokens[
+              mortgageContractsInfo[Number($chainId)].vaults[vaultKey].tokens[
                 "Deposit erc20"
               ].decimals;
             const pendingConversionData = await getPendingConversionData(
@@ -428,10 +447,10 @@ $: showReferralLink =
               nftId: id,
               vaultName: vaultKey,
               tokenIcon:
-                mortgageContractsInfo[$chainId].vaults[vaultKey].nfts["Conversion vault Tickets"].tokenIcon,
+                mortgageContractsInfo[Number($chainId)].vaults[vaultKey].nfts["Conversion vault Tickets"].tokenIcon,
               ticker:`${vaultKey}`+" NFT",
               tokenGreyed: false,
-              stablecoin:mortgageContractsInfo[$chainId].vaults[vaultKey].tokens["Stablecoin"].ticker,
+              stablecoin:mortgageContractsInfo[Number($chainId)].vaults[vaultKey].tokens["Stablecoin"].ticker,
               available: "~$" + fromWei(conversionSize, depositErc20Decimals), // Replace with dynamic value if necessary
               availableGreyed: true,
               repayInToken: "",
@@ -441,7 +460,7 @@ $: showReferralLink =
               amountSold: fromWei(conversionSize, depositErc20Decimals),
               amountExpected:amountExpected, // Replace with dynamic value if necessary
               remainingTime: remainingtime,
-              stablecoinDecimals: mortgageContractsInfo[$chainId].vaults[vaultKey].tokens["Stablecoin"].decimals
+              stablecoinDecimals: mortgageContractsInfo[Number($chainId)].vaults[vaultKey].tokens["Stablecoin"].decimals
             });
             counter++;
           } catch (error) {
@@ -464,7 +483,7 @@ $: showReferralLink =
         for (const id of conversionFeeTickets.ownedIds) {
           try {
             const depositErc20Decimals =
-              mortgageContractsInfo[$chainId].vaults[vaultKey].tokens[
+              mortgageContractsInfo[Number($chainId)].vaults[vaultKey].tokens[
                 "Deposit erc20"
               ].decimals;
             const pendingConversionData = await getPendingConversionData(
@@ -493,10 +512,10 @@ $: showReferralLink =
               nftId: id,
               vaultName: vaultKey,
               tokenIcon:
-                mortgageContractsInfo[$chainId].vaults[vaultKey].nfts["Conversion vault fee Tickets"].tokenIcon,
+                mortgageContractsInfo[Number($chainId)].vaults[vaultKey].nfts["Conversion vault fee Tickets"].tokenIcon,
               ticker:`${vaultKey}`+" FAV NFT",
               tokenGreyed: false,
-              stablecoin:mortgageContractsInfo[$chainId].vaults[vaultKey].tokens["Stablecoin"].ticker,
+              stablecoin:mortgageContractsInfo[Number($chainId)].vaults[vaultKey].tokens["Stablecoin"].ticker,
               available: "~$" + fromWei(conversionSize, depositErc20Decimals), 
               availableGreyed: true,
               repayInToken: "",
@@ -507,7 +526,7 @@ $: showReferralLink =
               amountExpected: amountExpected, // Replace with dynamic value if necessary
               remainingTime: remainingtime,
               remainingTimeSeconds: timeDifference,
-              stablecoinDecimals: mortgageContractsInfo[$chainId].vaults[vaultKey].tokens["Stablecoin"].decimals,
+              stablecoinDecimals: mortgageContractsInfo[Number($chainId)].vaults[vaultKey].tokens["Stablecoin"].decimals,
 
             });
             counter++;
@@ -539,7 +558,8 @@ $: showReferralLink =
 
 
 
-  async function executeContractCalls() {
+  async function loadFavUser() {
+    console.log("Executing contract calls");
     
     $walletBalances = await getWalletBalances();
     console.log("walletBalances = ", $walletBalances);
@@ -670,10 +690,10 @@ function handleClose() {
             font={false}
             textSize="text-xs"
             border="border"
+            borderColor={false}
             paddingX={false}
             paddingY="py-1.5"
-            backgroundColor="bg-whitePrim-light dark:whitePrim-dark"
-            borderColor={false}
+            backgroundColor="bg-whitePrim-light dark:bg-whitePrim-dark"
             type={"button"}
           >
             <span>Learn more</span>
@@ -687,19 +707,17 @@ function handleClose() {
       </div>
     {/if}
     
-      {#if !$connectedAndSupported && $currentPage!="" && $currentPage!="docs"}
-      <div class="bg-whitePrim-light p-4 text-center">
-        Join the Fav Wave by connecting to one of our supported networks including:<br>
-        {#each $supportedNetworks as networkName}
-        <div class="text-bluePrim-light text-base font-BarlowBold">{toTitleCase(networkName.networkName)}</div> 
-        {/each}  
-        If you'd like to see FAV on your favourite chain join the deFiGarage <span class="text-orangePrim-light font-BarlowBold"><a href="https://discord.gg/FqBDBF99">discord</a></span> and let us know
-      </div>
-      
-      {:else}
-
+    {#if !$account.address || !chains.some(chain => chain.id === $chainId)}
+    <div class="bg-whitePrim-light p-4 text-center">
+      Join the Fav Wave by connecting to one of our supported networks including:<br>
+      {#each chains as chain}
+        <div class="text-bluePrim-light text-base font-BarlowBold">{toTitleCase(chain.name)}</div> 
+      {/each}  
+      If you'd like to see FAV on your favourite chain join the deFiGarage <span class="text-orangePrim-light font-BarlowBold"><a href="https://discord.gg/FqBDBF99">discord</a></span> and let us know
+    </div>
+  {:else}
     <slot />
-      {/if}
+  {/if}
      
     </main>
 

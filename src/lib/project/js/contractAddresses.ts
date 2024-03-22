@@ -1,8 +1,8 @@
 //// Updating these addresses will update the whole site
 
 export const mortgageContractsInfo = ({
-    "0x89": {  /// Polygon contracts -------------------------
-        networkID: "1",
+    "137": {  /// Polygon contracts -------------------------
+        networkID: 137,
         networkName: "polygon",
         vaults:{
             "DAI-AWMATIC":{

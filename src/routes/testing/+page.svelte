@@ -13,13 +13,15 @@
       runViewFunction,
       getWalletBalances,
       
-    } from "$lib/project/js/helpers.js";
+    } from "$lib/project/js/helpers.ts";
   
     import {
       scrapeViewablelInfo
-    } from "$lib/project/js/FAVfunctionCalls.js";
+    } from "$lib/project/js/FAVfunctionCalls.ts";
   
     import { 
+      user,
+      chainId,
       userBalances,
       mortgagePoolContractFunctions,
       walletBalances,
@@ -38,17 +40,17 @@
       payOutstandingAmount,
       finaliseLoanButtonLabel   
   
-    } from '$lib/project/js/stores/projectDynamicValues.js';
+    } from '$lib/project/js/stores/projectDynamicValues.ts';
   
   
     import mortgagePoolContractAbi from "$lib/project/abi/mortgagepool.sol/mortgagepool.json";
-    
+    import { account, provider, wagmiConfig} from "$lib/web3modal";
     
     import { mortgageContractsInfo } from "$lib/project/js/contractAddresses";
     /// Boilerplate Web3 imports
     import erc20Abi from "$lib/boilerplate/abi/erc-20.json";
     import { _round } from "$lib/boilerplate/js/core";
-    import { triggerCdpsAppContractCalls, user, chainId, alchemyNode } from "$lib/boilerplate/js/stores/wallet";
+    import { triggerCdpsAppContractCalls, alchemyNode } from "$lib/boilerplate/js/stores/wallet";
     import BigNumber from 'bignumber.js';
     
     
@@ -98,10 +100,14 @@
     }
   
   
-    function showTestInfo(){
+    async function showTestInfo(){
+      console.log("$dropDownSelectionsNames.FAVLoanBorrowVault = ", mortgageContractsInfo[Number($chainId)]);
+      const contract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].coreContracts["Mortgage Pool"].address;
+      const erc20Decimals = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].decimals;
+
       
-      console.log("user = ", $user, " chainId = ", $chainId) ;
-  
+        
+      console.log("Account", $account)
   
       // console.log("Test info = ", "Balance "+ $walletBalances[$chainId]?.vaults[$dropDownSelectionsNames.FAVSwapDepositVault]?.tokens["Deposit erc20"]?.balance ?? 'Loading...');
       // console.log("Keys:", Object.keys($redeemableNFTs))

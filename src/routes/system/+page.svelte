@@ -13,6 +13,8 @@
     } from '$lib/project/js/helpers';
     //on chain-data reads
     import {
+        user,
+        chainId,
         protocolLoans,
         protocolInfo,
         vaultFilter,
@@ -55,10 +57,10 @@
     import HelpMessageModal from '$lib/boilerplate/components/HelpMessageModal.svelte';
     
 
-    import { triggerCdpsAppContractCalls, user, chainId } from "$lib/boilerplate/js/stores/wallet";
+    // import { triggerCdpsAppContractCalls, user, chainId } from "$lib/boilerplate/js/stores/wallet";
     import { mortgageContractsInfo } from "$lib/project/js/contractAddresses";
     import mortgagePoolContractAbi from "$lib/project/abi/mortgagepool.sol/mortgagepool.json";
-  import { getEventListeners } from 'events';
+    import { getEventListeners } from 'events';
     
     let selectedVaultId = null; // This stores the selected vault's ID
 
@@ -146,7 +148,7 @@
          // console.log("mortgagePoolContractAbi = ", mortgagePoolContractAbi);
 
         // get the mortgage and stablecoin contract addresses of the currently selected vault/dropdown
-        const contract = mortgageContractsInfo[$chainId].vaults[vault].coreContracts["Mortgage Pool"].address;
+        const contract = mortgageContractsInfo[Number($chainId)].vaults[vault].coreContracts["Mortgage Pool"].address;
         
         console.log("handleDefault: mortgagePoolContract", contract);       
         const args = [loanId];
@@ -186,30 +188,25 @@
 <!-- Global system stats -->
 <div transition:slide class="networkStats w-full mb-5 min-w-[200px] max-w-[600px] pt-5 flex px-3 gap-x-8 items-center justify-center font-BarlowRegular  xs:text-base text-xs">
     <div class="network font-BarlowBold text-bluePrim-light">
-        {#if mortgageContractsInfo}
-        {toTitleCase(mortgageContractsInfo[$chainId].networkName)}
-        {/if}
-        
+        {#if $chainId}
+        {toTitleCase(mortgageContractsInfo[Number($chainId)].networkName)}
+        {/if}        
     </div>
-
-                {#each $protocolInfo as item}
-                    {#if item.name === 'noEthContracts'}
-                        <div class="text-blackPrim-light dark:text-blackPrim-dark">Live contracts <span class="text-blackPrim-light dark:text-blackPrim-dark font-BarlowBold">
-                            {#if $vaultLoans.length > 0}
-                                <Countup value={$vaultLoans.length}/>                                
-                            {/if}                            
-                        </span></div>
-                    {:else if item.name === 'ethTVL'}
-                        <div class="text-blackPrim-light dark:text-blackPrim-dark">TVL <span class="text-blackPrim-light dark:text-blackPrim-dark font-BarlowBold">
-                            {#if $systemVaults.length > 0}
-                                ~${_round(getTVL(), 7)}
-                            {/if}
-                        </span></div>
+        {#each $protocolInfo as item}
+            {#if item.name === 'noEthContracts'}
+                <div class="text-blackPrim-light dark:text-blackPrim-dark">Live contracts <span class="text-blackPrim-light dark:text-blackPrim-dark font-BarlowBold">
+                    {#if $vaultLoans.length > 0}
+                        <Countup value={$vaultLoans.length}/>                                
+                    {/if}                            
+                </span></div>
+            {:else if item.name === 'ethTVL'}
+                <div class="text-blackPrim-light dark:text-blackPrim-dark">TVL <span class="text-blackPrim-light dark:text-blackPrim-dark font-BarlowBold">
+                    {#if $systemVaults.length > 0}
+                        ~${_round(getTVL(null), 7)}
+                    {/if}
+                </span></div>
             {/if}
-                {/each}
-
-
-
+        {/each}
 </div>
 
 <div transition:slide class="flex flex-col justify-center items-center space-y-10 w-full">
@@ -225,14 +222,15 @@
                 <div class="rightHandGroup">
                     <Button 
                     cornerRadius={$roundedCornersSm}
-                    textColor={false}
+                    textColor="text-navyPrim-light dark:text-blackPrim-dark"
                     font={false}
                     textSize="text-xs"
                     border="border"
                     paddingX={false}
                     paddingY="py-1.5"
-                    backgroundColor="bg-whitePrim-light dark:whitePrim-dark"
+                    backgroundColor="bg-whitePrim-light dark:bg-whitePrim-dark"
                     borderColor={false}
+                    type="button"
                     >
                     <span>Learn more</span>
                 </Button>
@@ -298,7 +296,7 @@
         ></PaymentInputField>
         <div transition:slide={{ duration: 300, easing: cubicInOut }} class="content space-y-4"> 
             {#each $vaultLoans as loan}
-                {#if loan.vault === $systemVaults[selectedVault].vault && loan.ownerAddress != mortgageContractsInfo[$chainId].vaults[loan.vault].coreContracts["Mortgage Pool"].address}
+                {#if loan.vault === $systemVaults[selectedVault].vault && loan.ownerAddress != mortgageContractsInfo[Number($chainId)].vaults[loan.vault].coreContracts["Mortgage Pool"].address}
                     <li class="text-blackPrim-light dark:text-blackPrim-dark list-none">
                         <div class="loansMain">
                             <div  class="loanDetails max-w-[600px] grid xs:grid-cols-[0.3fr_1fr_1fr_1fr_1fr_60px] grid-cols-[50px_1fr_1fr_60px] gap-x-4 items-center text-center font-BarlowLight text-xs"> 
@@ -323,6 +321,7 @@
                                         paddingY={false}
                                         backgroundColor="bluePrim-light"
                                         borderColor="bluePrim-light"
+                                        type="button"
                                         >
                                         <span>Default</span>
                                     </Button>

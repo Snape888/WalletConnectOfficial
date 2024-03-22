@@ -19,7 +19,8 @@ export const nodes = [
 	() => import('./nodes/15'),
 	() => import('./nodes/16'),
 	() => import('./nodes/17'),
-	() => import('./nodes/18')
+	() => import('./nodes/18'),
+	() => import('./nodes/19')
 ];
 
 export const server_loads = [];
@@ -37,9 +38,10 @@ export const dictionary = {
 		"/earn": [13],
 		"/earn/[slug]": [14],
 		"/system": [15],
-		"/testing": [17],
+		"/test2": [17],
+		"/testing": [18],
 		"/test": [16],
-		"/walletConnect": [18,[2]],
+		"/walletConnect": [19,[2]],
 		"/[slug]": [4]
 	};
 

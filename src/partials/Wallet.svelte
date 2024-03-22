@@ -1,26 +1,42 @@
 <script lang="ts">
-	import type { Metadata } from '$lib/types'
-	import Card from '../components/Card.svelte'
-	import { account, provider, supported_chains } from '../lib/web3modal'
-
-	let metadata: Metadata
-	let chains: string[] = []
-	let methods: string[] = []
-	let events: string[] = []
-
+	import type { Metadata } from '$lib/types';
+	import Card from '../components/Card.svelte';
+	import { account, provider, supported_chains } from '../lib/web3modal';
+  
+	interface Provider {
+	  session?: {
+		namespaces?: {
+		  eip155?: {
+			chains: string[];
+			methods: string[];
+			events: string[];
+		  };
+		};
+		peer?: {
+		  metadata: Metadata;
+		};
+	  };
+	}
+  
+	let metadata: Metadata | undefined;
+	let chains: string[] = [];
+	let methods: string[] = [];
+	let events: string[] = [];
+  
 	provider.subscribe((value) => {
-		const session = value?.session
-		if (session) {
-			const namespaces = session.namespaces?.eip155
-			metadata = session.peer?.metadata
-			chains = namespaces?.chains
-			methods = namespaces?.methods
-			events = namespaces?.events
-
-			if (chains.length) supported_chains.set(chains)
-		}
-	})
-</script>
+	  const session = (value as Provider)?.session;
+	  if (session) {
+		const namespaces = session.namespaces?.eip155;
+		metadata = session.peer?.metadata;
+		chains = namespaces?.chains || [];
+		methods = namespaces?.methods || [];
+		events = namespaces?.events || [];
+  
+		if (chains.length) supported_chains.set(chains);
+	  }
+	});
+  </script>
+  
 
 {#if $account.isConnected && metadata}
 	<Card>

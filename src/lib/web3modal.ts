@@ -31,8 +31,9 @@ const metadata = {
 	icons: ['https://avatars.githubusercontent.com/u/37784886'],
 }
 
+//supported chains
 export const chains = [
-	mainnet,
+	
 	polygon,
 ] as const
 
@@ -69,21 +70,35 @@ createWeb3Modal({
 })
 
 export const chainId = readable(getChainId(wagmiConfig), (set) =>
-	watchChainId(wagmiConfig, { onChange: set }),
-)
+	watchChainId(wagmiConfig, {
+		onChange: (newChainId) => {
+			console.log("Current Chain ID:", newChainId);
+			set(newChainId);
+		},
+	}),
+);
 export const account = readable(getAccount(wagmiConfig), (set) =>
-	watchAccount(wagmiConfig, { onChange: set }),
-)
+	watchAccount(wagmiConfig, {
+		onChange: (newAccount) => {
+			console.log("Current Account:", newAccount);
+			set(newAccount);
+		},
+	}),
+);
 export const provider = readable<unknown | undefined>(
 	undefined,
 	(set) =>
 		watchAccount(wagmiConfig, {
 			onChange: async (account) => {
-				if (!account.connector) return set(undefined)
-				set(await account.connector?.getProvider())
+				//console.log("Entered provider instantiation");
+				if (!account.connector) return set(undefined);
+				const currentProvider = await account.connector?.getProvider();
+				console.log("Current Provider:", currentProvider);
+				set(currentProvider);
 			},
 		}),
-)
+);
+
 
 export const customWallet = writable({
 	id: undefined,

@@ -1,35 +1,29 @@
-import { ALCHEMY_NODE_KEY_ETHEREUM_MAINNET,ALCHEMY_NODE_KEY_POLYGON_MAINNET } from "$lib/boilerplate/js/env.ts";
-
-import { chainId, user } from "$lib/boilerplate/js/stores/wallet.ts";
-
-import { content, visibility } from "$lib/boilerplate/js/stores/alert.ts";
-
+import { ALCHEMY_NODE_KEY_ETHEREUM_MAINNET, ALCHEMY_NODE_KEY_POLYGON_MAINNET } from "$lib/boilerplate/js/env";
+import { chainId, user } from "$lib/boilerplate/js/stores/wallet";
+import { content, visibility } from "$lib/boilerplate/js/stores/alert";
 import erc20Abi from "$lib/boilerplate/abi/erc-20.json";
-
 import { BigNumber } from "bignumber.js";
 
-export const networkNameByChainId = {"0x1": "ethereum","0x89": "polygon"};
+export const networkNameByChainId = {
+  "1": "ethereum",
+  "139": "polygon",
+};
 
-export const alchemyNodeKeyByChainId = {"0x1": "https://eth-mainnet.g.alchemy.com/v2/" + ALCHEMY_NODE_KEY_ETHEREUM_MAINNET,"0x89": "https://polygon-mainnet.g.alchemy.com/v2/" + ALCHEMY_NODE_KEY_POLYGON_MAINNET};
+export const alchemyNodeKeyByChainId = {
+  1: "https://eth-mainnet.g.alchemy.com/v2/" + ALCHEMY_NODE_KEY_ETHEREUM_MAINNET,
+  137: "https://polygon-mainnet.g.alchemy.com/v2/" + ALCHEMY_NODE_KEY_POLYGON_MAINNET,
+};
 
-export const socketByChainId = {"0x89": "wss://polygon-mainnet.g.alchemy.com/v2/" + ALCHEMY_NODE_KEY_ETHEREUM_MAINNET};
+export const socketByChainId = {
+  137: "wss://polygon-mainnet.g.alchemy.com/v2/" + ALCHEMY_NODE_KEY_ETHEREUM_MAINNET,
+};
 
 export function abbreviate(word, before, after) {
     word = word.substr(0, before) + "..." + word.substr(word.length - after);
     return word;
 }
 
-export async function getWalletBalance(alchemyNode, tokenName, account) {
-    let _chainId;
-    const unsubscribe = chainId.subscribe(value => {
-        _chainId = value;
-    });
-    unsubscribe();
-    const tokenObject = new alchemyNode.eth.Contract(erc20Abi, tokenInformationByTokenName[tokenName]["address"][_chainId]);
-    let balance = new BigNumber(await tokenObject.methods.balanceOf(account).call());
-    balance = balance.dividedBy(10 ** tokenInformationByTokenName[tokenName]["decimals"]).decimalPlaces(tokenInformationByTokenName[tokenName]["decimals"], 1).toFixed();
-    return balance;
-}
+
 
 export function txCanBeInitiated(lastTxAddedToRegister) {
     let _chainId;

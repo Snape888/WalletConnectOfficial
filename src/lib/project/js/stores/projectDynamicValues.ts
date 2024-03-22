@@ -6,11 +6,14 @@ import {mortgageContractsInfo} from '$lib/project/js/contractAddresses';
 
 /// Boilerplate Web3 imports
 import { _round } from "$lib/boilerplate/js/core";
-import { triggerCdpsAppContractCalls, user, chainId, alchemyNode } from "$lib/boilerplate/js/stores/wallet";
+import { triggerCdpsAppContractCalls, alchemyNode } from "$lib/boilerplate/js/stores/wallet";
 
 
 //-----------------------------------------------------------------------------------------------------------------
 // General variables ----------------------------------------------------------------------------------------------
+export const user = writable("");
+export const chainId = writable();
+export const providerNode = writable();
 export const copied = writable(false); // Store to control the display of the "Copied" message
 export const userBalance = writable("n/a");
 export const pricePerCoin = writable();
@@ -307,6 +310,8 @@ export const contractAddresses = writable({
     stablecoinDecimals : "",
     depositErc20Address : "",
     depositErc20Decimals : "",
+    borrowErc20Address : "",
+    borrowErc20Decimals : "",
     mortgageConversionVaultAddress : "",
     favStableAddress : "",
     favStableDecimals : "",
@@ -613,13 +618,13 @@ export const pendingConversions = writable([
 // FAV Loans page--------------------------------------------------------------------------------------------------
 // loan summary of current loan being evaulated by user on Loans Page
 export const loanSummary = writable({
-    monthlyInstallment: "0",
-    poolUtilisation: "0",
-    interestRate: "0",
-    depositSize:"0",
-    totalRepayable: "0",
-    basePrice: "0",
-    tokensAvailable: "0"
+    monthlyInstallment: 0,
+    poolUtilisation: 0,
+    interestRate: 0,
+    depositSize:0,
+    totalRepayable: 0,
+    basePrice: 0,
+    tokensAvailable: 0
 });
 
 interface BorrowVault {
@@ -1124,7 +1129,15 @@ export const selectedFAVEarnDepositVault = writable(0);
 export const selectedFAVEarnDepositFAVStable = writable(0);
 export const selectedFAVEarnDepositIOU = writable(0);
 
-export const earnVaultSummary = writable({});
+// Define the interface
+interface EarnVaultSummary {
+    poolUtilisation: number;
+    APR: number;
+    totalSupply: number;
+  }
+  
+  // Use the interface with a writable store
+  export const earnVaultSummary = writable<EarnVaultSummary | null>(null);
 
 
 // shows the FAV stable balance of the currently selected deposit vault

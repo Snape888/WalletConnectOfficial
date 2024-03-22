@@ -1,6 +1,8 @@
-import { chainId, alchemyNode, user, providerNode } from "$lib/boilerplate/js/stores/wallet.ts";
+import { alchemyNode, providerNode } from "$lib/boilerplate/js/stores/wallet.ts";
 
 import {
+    user,
+    chainId,
     userBalance,
     borrowVaults,
     mortgagePoolContractFunctions,
@@ -75,18 +77,9 @@ import mortgageFeeConversionVaultAbi from "$lib/project/abi/mortgagefeeconversio
 
 import { mortgageContractsInfo } from "$lib/project/js/contractAddresses";
 
-/// Transfer DAI from the connected user to the connected user 
-export async function withdraw() {
-    // console.log(user,userBalance[0]);
-    let result = await transfer("dai",user,userBalance[0]);
-        if (result){
-            
-            triggerCdpsAppContractCalls.set(false);
-            triggerCdpsAppContractCalls.set(true);
-        }
-} 
 
-export function getTVL(chain,){
+
+export function getTVL(chain){
     
     let tvl = 0;
     let _systemVaults=get(systemVaults);
@@ -94,10 +87,10 @@ export function getTVL(chain,){
     const _exchangeRates = get(exchangeRates);
     console.log("getTVL: _chainId = ", _chainId," _systemVaults = ", _systemVaults);
     
-    if (!chain && _chainId != "0x0"){    
+    if (!chain){    
         for (const index of _systemVaults) {
-            const erc20Decimals = mortgageContractsInfo[_chainId].vaults[index.vault].tokens["Deposit erc20"].decimals;
-            const stablecoinDecimals = mortgageContractsInfo[_chainId].vaults[index.vault].tokens["Stablecoin"].decimals;
+            const erc20Decimals = mortgageContractsInfo[Number(_chainId)].vaults[index.vault].tokens["Deposit erc20"].decimals;
+            const stablecoinDecimals = mortgageContractsInfo[Number(_chainId)].vaults[index.vault].tokens["Stablecoin"].decimals;
             let coinsInContracts = fromWei(index.coinsInContracts,erc20Decimals) ;
             let _exchangeRate = fromWei(_exchangeRates[index.vault].pricePerCoin, stablecoinDecimals)
             console.log("getTVL "+index.ticker +" coinsInContracts =", coinsInContracts);
@@ -129,8 +122,10 @@ export function createExchangeDepositsVaultsArray() {
             if (vaultData.tokens && vaultData.tokens["Mortgage Pool"]) {
                 const tokenData = vaultData.tokens["Mortgage Pool"];
 
-                // Create an object for the newExchangeDepositVaults array
-                const depositVaultEntry = {
+                if (tokenData.balance > 0){
+
+                  // Create an object for the newExchangeDepositVaults array
+                  const depositVaultEntry = {
                     ticker: tokenData.ticker,
                     balance: tokenData.balance,
                     rawBalance: tokenData.rawBalance,
@@ -146,7 +141,10 @@ export function createExchangeDepositsVaultsArray() {
                     feeNoteGreyed: true
                 };
 
-                newExchangeDepositVaults.push(depositVaultEntry);
+              newExchangeDepositVaults.push(depositVaultEntry);
+
+                }
+                
             }
         });
     });
@@ -154,6 +152,65 @@ export function createExchangeDepositsVaultsArray() {
     exchangeDepositVaults.set(newExchangeDepositVaults); // Update the Svelte store
     console.log("exchangeDepositVaults = ", get(exchangeDepositVaults));
 }
+
+export async function createRedeemableIOUsArray() {
+  const _chainId = get(chainId);
+  const _user = get(user);
+  const networkVaults = mortgageContractsInfo[Number(_chainId)].vaults;
+  const _redeemableIOUBalances:  any[] = [];
+  let i = 0; // Initialize the counter outside the loops
+
+  for (const vaultKey in networkVaults) {
+    let contract = mortgageContractsInfo[Number(_chainId)].vaults[vaultKey].coreContracts["Mortgage Pool"].address;
+
+    let args = [_user];
+    let mySize = await runViewFunction({
+        contractAddress: contract,
+        abi: mortgagePoolContractAbi,
+        functionName: 'mySizeWaitingForExit',
+        args: args,
+    });
+    const balance = fromWei(mySize, 18);
+    // get redeemable value of current vault
+    let stablecoinContract = mortgageContractsInfo[Number(_chainId)].vaults[vaultKey].tokens["Stablecoin"].address;
+    args = [contract];
+    let balanceOf = await runViewFunction({
+        contractAddress: stablecoinContract,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: args,
+    });
+    const redeemable = fromWei(balanceOf, 18);
+
+    
+    // stablecoin ticker
+    let stablecoin = mortgageContractsInfo[Number(_chainId)].vaults[vaultKey].tokens["Stablecoin"].ticker;
+
+
+    if (Number(balance) > 0){
+      const vault = networkVaults[vaultKey];
+      _redeemableIOUBalances.push({
+      id: i++,
+      tokenIcon: "/utilityTokens/FAVClaim " + vaultKey + ".svg",
+      ticker: vault.ticker,
+      tokenGreyed: false,
+      available: balance, // Placeholder for current APRs
+      availableGreyed: true,
+      repayInToken: "",
+      repayInTokenGreyed: true,
+      feeNote: "",
+      feeNoteGreyed: true,  
+      redeemable: redeemable,
+      stablecoin: stablecoin
+
+      });
+    }
+  }
+
+  redeemableIOUBalances.set(_redeemableIOUBalances);
+  console.log("redeemableIOUsBalances = ", get(redeemableIOUBalances));
+}
+
 
 export async function scrapeViewablelInfo(contractAddress, contractAbi, contractFunctions, contractValues, functions, nftId) {
     const _chainId = get(chainId);
@@ -191,7 +248,12 @@ export async function scrapeViewablelInfo(contractAddress, contractAbi, contract
 
         if (functionObj.hasOwnProperty('output')) {
             try {
-                let result = await runViewFunction(_contractAddress, contractAbi, functionName, args);
+                let result = await runViewFunction({
+                  contractAddress: _contractAddress,
+                  abi: contractAbi,
+                  functionName: functionName,
+                  args: args,
+              });
                 contractValues[functionName]['output'] = result;
             } catch (error) {
                 console.error(`Error in function '${functionName}' with args ${args}: ${error}`);
@@ -234,8 +296,8 @@ export async function createMyLoansArray() {
     const balances = get(walletBalances);
     const currentChainId = get(chainId);
   
-    for (const vaultKey in balances[currentChainId].vaults) {
-      const vaultInfo = mortgageContractsInfo[currentChainId].vaults[vaultKey];
+    for (const vaultKey in balances[Number(currentChainId)].vaults) {
+      const vaultInfo = mortgageContractsInfo[Number(currentChainId)].vaults[vaultKey];
       const mortgageContractAddress = vaultInfo.coreContracts["Mortgage Pool"].address;
       const stablecoinTicker = vaultInfo.tokens["Stablecoin"].ticker;
       const stablecoinTokenIcon = vaultInfo.tokens["Stablecoin"].tokenIcon;
@@ -252,7 +314,7 @@ export async function createMyLoansArray() {
   
       loanNFTsObject[vaultKey] = [];
   
-      for (const nftId of balances[currentChainId].vaults[vaultKey].nfts["Mortgage contracts"].ownedIds) {
+      for (const nftId of balances[Number(currentChainId)].vaults[vaultKey].nfts["Mortgage contracts"].ownedIds) {
         let functions = ["amountPayed", "baseSize", "coinSize", "expiration", "feeSize", "openDebt"];
   
         await scrapeViewablelInfo(
@@ -336,7 +398,7 @@ export async function createMyLoansArray() {
 // Populate with all system loans
 export async function createSystemLoans() {
     const _chainId = get(chainId);
-    const networkVaults = mortgageContractsInfo[_chainId].vaults;
+    const networkVaults = mortgageContractsInfo[Number(_chainId)].vaults;
     let _systemVaults: any[] = []; // Specify the type as any[]
     let _vaultLoans: any[] = []; // Specify the type as any[]
     console.log("createSystemLoans: _chainId = ", _chainId, " networkVaults = ", networkVaults);
@@ -349,72 +411,76 @@ export async function createSystemLoans() {
       /// trigger viewFunction to get the total supply fo that vault
   
       const mortgagePoolContract =
-        mortgageContractsInfo[_chainId].vaults[vaultKey].coreContracts[
+        mortgageContractsInfo[Number(_chainId)].vaults[vaultKey].coreContracts[
           "Mortgage Pool"
         ].address;
       const stablecoinTicker =
-        mortgageContractsInfo[_chainId].vaults[vaultKey].tokens["Stablecoin"]
+        mortgageContractsInfo[Number(_chainId)].vaults[vaultKey].tokens["Stablecoin"]
           .ticker;
       const depositErc20Ticker =
-        mortgageContractsInfo[_chainId].vaults[vaultKey].tokens["Deposit erc20"]
+        mortgageContractsInfo[Number(_chainId)].vaults[vaultKey].tokens["Deposit erc20"]
           .ticker;
       const depositErc20Decimals =
-        mortgageContractsInfo[_chainId].vaults[vaultKey].tokens["Deposit erc20"]
+        mortgageContractsInfo[Number(_chainId)].vaults[vaultKey].tokens["Deposit erc20"]
           .decimals;
       const mortgageContractsAddress =
-        mortgageContractsInfo[_chainId].vaults[vaultKey].nfts[
+        mortgageContractsInfo[Number(_chainId)].vaults[vaultKey].nfts[
           "Mortgage contracts"
         ].address;
       let coinsInContracts = 0;
       // get number oof loans
       let args = [];
-      const vaultSupply = await runViewFunction(
-        mortgageContractsAddress,
-        mortgageContractsAbi,
-        "totalSupply",
-        args,
-      );
+
+      let vaultSupply = await runViewFunction({
+          contractAddress: mortgageContractsAddress,
+          abi: mortgageContractsAbi,
+          functionName: "totalSupply",
+          args: args,
+      });
+      
       // console.log("vaultSupply = ", vaultSupply);
   
       let amountOfActiveLoans = 0;
-      for (let i = 0; i < vaultSupply; i++) {
+      for (let i = 0; i < Number(vaultSupply); i++) {
         // get number of loans
         let ownAddressArgs = [i];
-        const ownerAddress = await runViewFunction(
-          mortgageContractsAddress,
-          mortgageContractsAbi,
-          "ownerOf",
-          ownAddressArgs,
-        );
+        const ownerAddress = await runViewFunction({
+            contractAddress: mortgageContractsAddress,
+            abi: mortgageContractsAbi,
+            functionName: "ownerOf",
+            args: ownAddressArgs,
+        });
   
         // get size of loan
         let baseSizeArgs = [i];
-        const baseSize = await runViewFunction(
-          mortgagePoolContract,
-          mortgagePoolContractAbi,
-          "baseSize",
-          baseSizeArgs,
-        );
+        const baseSize = await runViewFunction({
+            contractAddress: mortgagePoolContract,
+            abi: mortgagePoolContractAbi,
+            functionName: "baseSize",
+            args: baseSizeArgs,
+        });
   
         // get size of loan
         let secondsTillArgs = [i];
-        const openDebt = await runViewFunction(
-          mortgagePoolContract,
-          mortgagePoolContractAbi,
-          "openDebt",
-          secondsTillArgs,
-        );
+
+        const openDebt = await runViewFunction({
+            contractAddress: mortgagePoolContract,
+            abi: mortgagePoolContractAbi,
+            functionName: "openDebt",
+            args: secondsTillArgs,
+        });
   
         // get coinsInContracts
         let coinsInContractsArgs = [];
-        coinsInContracts = await runViewFunction(
-          mortgagePoolContract,
-          mortgagePoolContractAbi,
-          "coinsInContracts",
-          coinsInContractsArgs,
-        );
+
+        const coinsInContracts = await runViewFunction({
+            contractAddress: mortgagePoolContract,
+            abi: mortgagePoolContractAbi,
+            functionName: "coinsInContracts",
+            args: coinsInContractsArgs,
+        });
   
-        if (ownerAddress != "0x0000000000000000000000000000000000000000" && baseSize > 0) {
+        if (ownerAddress != "0x0000000000000000000000000000000000000000" && Number(baseSize) > 0) {
           amountOfActiveLoans++;
           _vaultLoans.push({
             id: i,
@@ -424,7 +490,7 @@ export async function createSystemLoans() {
               depositErc20Ticker,
             ownerAddress: ownerAddress,
             vault: vaultKey,
-            secondsTillLiquidation: openDebt[2],
+            secondsTillLiquidation: Number(openDebt)[2],
           });
         }
       }
@@ -591,7 +657,7 @@ export function getShortestRemainingTime(nfts) {
 // used for loan management on dashboard
 export async function updateExchangeRates() {
     const _chainId = get(chainId); 
-    const networkVaults = mortgageContractsInfo[_chainId].vaults;
+    const networkVaults = mortgageContractsInfo[Number(_chainId)].vaults;
     let _exchangeRates = {};
 
     // Populate exchange rates for vaults
@@ -609,12 +675,24 @@ export async function updateExchangeRates() {
 
     async function processVault(vaultKey, isFAVVault) {
         const contractKey = isFAVVault ? "Mortgage Fee Conversion Vault" : "Mortgage Conversion Vault";
-        const vault = mortgageContractsInfo[_chainId].vaults[vaultKey];
+        const vault = mortgageContractsInfo[Number(_chainId)].vaults[vaultKey];
         const mortgageConversionVault = vault.coreContracts[contractKey].address;
         const depositTokenDecimals = vault.tokens["Deposit erc20"].decimals;
 
-        const totalSupply = await runViewFunction(mortgageConversionVault, mortgageConversionVaultAbi, "totalSupply", []);
-        const previewRedeem = await runViewFunction(mortgageConversionVault, mortgageConversionVaultAbi, "previewRedeem", [totalSupply]);
+
+        const totalSupply = await runViewFunction({
+            contractAddress: mortgageConversionVault,
+            abi: mortgageConversionVaultAbi,
+            functionName: "totalSupply",
+            args: [],
+        });
+        console.log("processVault: totalSupply = ", totalSupply);
+        const previewRedeem = await runViewFunction({
+            contractAddress: mortgageConversionVault,
+            abi: mortgageConversionVaultAbi,
+            functionName: "previewRedeem",
+            args: [totalSupply],
+        });
 
         const pricePerCoin = calculatePricePerCoin(totalSupply, previewRedeem, depositTokenDecimals);
         const newVaultKey = isFAVVault ? `FAV ${vaultKey}` : vaultKey;
@@ -639,33 +717,48 @@ export async function getPreviewStatsForEarnDeposit(){
     const _chainId = get(chainId);
     const _dropDownSelectionsNames = get(dropDownSelectionsNames);
     // get the mortgage and stablecoin contract addresses of the currently selected vault/dropdown
-    const poolContract = mortgageContractsInfo[_chainId].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].coreContracts["Mortgage Pool"].address;
-    const poolDecimals = mortgageContractsInfo[_chainId].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].coreContracts["Mortgage Pool"].decimals;
-    const erc20 = mortgageContractsInfo[_chainId].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].tokens["Deposit erc20"].address;
-    const erc20Decimals = mortgageContractsInfo[_chainId].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].tokens["Deposit erc20"].decimals;
-    const stablecoin = mortgageContractsInfo[_chainId].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].tokens["Stablecoin"].address;
-    const stablecoinDecimals = mortgageContractsInfo[_chainId].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].tokens["Stablecoin"].decimals;
+    const poolContract = mortgageContractsInfo[Number(_chainId)].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].coreContracts["Mortgage Pool"].address;
+    const poolDecimals = mortgageContractsInfo[Number(_chainId)].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].coreContracts["Mortgage Pool"].decimals;
+    const erc20 = mortgageContractsInfo[Number(_chainId)].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].tokens["Deposit erc20"].address;
+    const erc20Decimals = mortgageContractsInfo[Number(_chainId)].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].tokens["Deposit erc20"].decimals;
+    const stablecoin = mortgageContractsInfo[Number(_chainId)].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].tokens["Stablecoin"].address;
+    const stablecoinDecimals = mortgageContractsInfo[Number(_chainId)].vaults[_dropDownSelectionsNames.FAVEarnDepositVault].tokens["Stablecoin"].decimals;
 
 
     console.log("getPreviewStatsForEarnDeposit contract = ", poolContract, "erc20Decimals = ", erc20Decimals );
 
     // get utilisation 
     const utilisationArgs = [0, 30];
-    const utilisationResult = await runViewFunction(poolContract, mortgagePoolContractAbi, "simulateMonthlyPayment", utilisationArgs);
+    const utilisationResult = await runViewFunction({
+        contractAddress: poolContract,
+        abi: mortgagePoolContractAbi,
+        functionName: "simulateMonthlyPayment",
+        args: utilisationArgs,
+    });
 
 
     const aprArgs = [];
     //console.log("getPreviewStatsForEarnDeposit: args", args);
-    const aprResult = await runViewFunction(poolContract, mortgagePoolContractAbi, "calculateAPR", aprArgs);
+    const aprResult = await runViewFunction({
+        contractAddress: poolContract,
+        abi: mortgagePoolContractAbi,
+        functionName: "calculateAPR",
+        args: aprArgs,
+    });
     // console.log("simulate payments: ", result);
     const totalSupplyArgs = [];
-    const totalSupply = await runViewFunction(poolContract, mortgagePoolContractAbi, "totalSupply", totalSupplyArgs);
+    const totalSupply = await runViewFunction({
+        contractAddress: poolContract,
+        abi: mortgagePoolContractAbi,
+        functionName: "totalSupply",
+        args: totalSupplyArgs,
+    });
     // console.log("Base price: ", erc20BasePrice);
 
     earnVaultSummary.set({
-        poolUtilisation: utilisationResult[1],
-        APR: aprResult,
-        totalSupply: fromWei(totalSupply, poolDecimals),
+      poolUtilisation: Number(utilisationResult),
+      APR: Number(aprResult),
+      totalSupply: Number(fromWei(totalSupply, poolDecimals)),
     });
 
     console.log("loan summary info: ", get(earnVaultSummary));

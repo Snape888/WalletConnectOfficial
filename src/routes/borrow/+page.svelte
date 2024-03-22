@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     
     // Svelte imports
     import { slide } from 'svelte/transition';
@@ -24,9 +24,10 @@
     import { createExchangeDepositsVaultsArray, createSystemLoans, createMyLoansArray } from "$lib/project/js/FAVfunctionCalls.ts";
 
     import { ethers } from 'ethers';
-    import { triggerCdpsAppContractCalls, user, chainId } from "$lib/boilerplate/js/stores/wallet";
 
     import {
+        user,
+        chainId,
         borrowableVaults,
         borrowVaults,
         loanTerms,
@@ -70,8 +71,8 @@
 
 
     //Reactive balances of currently selected vaults
-    $: borrowErc20Balance = $walletBalances && $walletBalances[$chainId] && $walletBalances[$chainId].vaults && $walletBalances[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault] && $walletBalances[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens && $walletBalances[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"] && $walletBalances[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].balance !== undefined
-    ? "Balance " + $walletBalances[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].balance
+    $: borrowErc20Balance = $walletBalances && $walletBalances[Number($chainId)] && $walletBalances[Number($chainId)].vaults && $walletBalances[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault] && $walletBalances[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens && $walletBalances[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"] && $walletBalances[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].balance !== undefined
+    ? "Balance " + $walletBalances[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].balance
     : 'Loading...';
 
     let monthlyInstallmentsWSlippage =0;
@@ -87,22 +88,10 @@
 
     ////// Loan form -------------------------------------------------------------------------------------
 
-    let amountToBorrow = ""; // Reactive variable to hold the input value
-    let slippage = 0;
+    let amountToBorrow: number | null = null; // Reactive variable to hold the input value
+    let slippage: number | null = null;
     let loanTerm = 30;
 
-    function submitCreateLoan(event) {
-        event.preventDefault();
-
-        if (isValidForm()) {
-            console.log({ amountToBorrow, loanTerm, slippage });
-            // createLoan(amountToBorrow, loanTerm, slippage);
-            withdraw();
-        } else {
-            console.log("Form is incomplete");
-            // Handle the incomplete form case (e.g., show an error message)
-        }
-    }
 
     ////// End of Loan form --------------------------------------------------------------------------------
 
@@ -165,7 +154,17 @@
             $dropDownSelections.FAVLoanBorrowVault = event.detail;
             updateCurrentSelectedDropdowns();
         }
-
+        //reset loan summary
+        $loanSummary = ({
+            monthlyInstallment: 0,
+            poolUtilisation: 0,
+            interestRate: 0,
+            depositSize:0,
+            totalRepayable: 0,
+            basePrice: 0,
+            tokensAvailable: 0
+        });
+        amountToBorrow = null;
         checkAllowances();
         // return index; // returns -1 if no element is found
     }
@@ -220,7 +219,7 @@
 
 
     // Reactive statement to update the button label
-    $: if ($FAVLoanDepositAllowance !== null && amountToBorrow > $FAVLoanDepositAllowance) {
+    $: if ($FAVLoanDepositAllowance !== null && Number(amountToBorrow) > Number($FAVLoanDepositAllowance)) {
         createLoanButtonLabel = 'Approve';
     } else {
         createLoanButtonLabel = 'Create loan';
@@ -238,13 +237,13 @@
         }
 
         // console.log("mortgagePoolContractAbi = ", mortgagePoolContractAbi);
-        console.log("handleCreateLoan mortgageContractsInfo = ", mortgageContractsInfo[chainId]);
+        console.log("handleCreateLoan mortgageContractsInfo = ", mortgageContractsInfo[Number(chainId)]);
 
         // get the mortgage and erc20 contract addresses of the currently selected vault/dropdown
-        const contract = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].coreContracts["Mortgage Pool"].address;
-        const erc20Contract = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].address;
-        const erc20Decimals = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].decimals;
-        const stablecoinDecimals = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Stablecoin"].decimals;
+        const contract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].coreContracts["Mortgage Pool"].address;
+        const erc20Contract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].address;
+        const erc20Decimals = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].decimals;
+        const stablecoinDecimals = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Stablecoin"].decimals;
 
 
         updateContractAddresses();
@@ -253,7 +252,7 @@
             // console.log("contract addresses = ", $contractAddresses);
 
             let loanDepositAmount = Number(amountToBorrow);
-            let approveAmount = toWei(loanDepositAmount, $contractAddresses.stablecoinDecimals);
+            let approveAmount = toWei(loanDepositAmount, erc20Decimals);
             
             const args = [contract, approveAmount];
 
@@ -278,7 +277,7 @@
             // console.log("token decimals = ", $contractAddresses.stablecoinDecimals);
             let referrer;
             function isValidEthereumAddress(address) {
-             return ethers.utils.isAddress(address);
+             return ethers.isAddress(address);
 }
             if($referUser && isValidEthereumAddress($referUser)){
                 referrer = $referUser;
@@ -313,8 +312,8 @@
     async function handleBorrowFieldInput(){
 
         // get the mortgage and stablecoin contract addresses of the currently selected vault/dropdown
-        const contract = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].coreContracts["Mortgage Pool"].address;
-        const erc20Decimals = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].decimals;
+        const contract = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].coreContracts["Mortgage Pool"].address;
+        const erc20Decimals = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].decimals;
 
         console.log("handleBorrowField contract = ", contract, "erc20Decimals = ", erc20Decimals );
 
@@ -322,30 +321,58 @@
         // let duration = parseInt(loanTerm[1], 10);
         let duration = loanTerm;
         let args = [toWei(Number(amountToBorrow), erc20Decimals), duration];
-        console.log("handleBorrowFieldInput: args", args);
-        let result = await runViewFunction(contract, mortgagePoolContractAbi, "simulateMonthlyPayment", args);
+        console.log("handleBorrowFieldInput: simulateMonthlyPayments inputs: contract = ", contract, " args = ", args);
+        let result = await runViewFunction({
+            contractAddress: contract,
+            abi: mortgagePoolContractAbi,
+            functionName: 'simulateMonthlyPayment',
+            args: args,
+        });
+        console.log("handleBorrowFieldInput: simulateMonthlyPayments output:  = ", result);
         // console.log("simulate payments: ", result);
         let basePriceArgs = [];
-        let erc20BasePrice = await runViewFunction(contract, mortgagePoolContractAbi, "freeCoins", basePriceArgs);
-        // console.log("Base price: ", erc20BasePrice);
+        let erc20BasePrice = await runViewFunction({
+            contractAddress: contract,
+            abi: mortgagePoolContractAbi,
+            functionName: 'freeCoins',
+            args: basePriceArgs,
+        });
+        console.log("Base price: ", erc20BasePrice);
+
+        interface SimulationResult {
+        monthlyInstallment: bigint;
+        poolUtilisation: bigint;
+        interestRate: bigint;
+        depositSize: bigint;
+        totalRepayable: bigint;
+        }
+
+        interface BasePriceResult {
+        basePrice: bigint;
+        tokensAvailable: bigint;
+        }
+
+        // Assume result is of type SimulationResult for this operation
+        const simulationResult = result as unknown as SimulationResult;
+        const basePriceResult = erc20BasePrice as unknown as BasePriceResult;
 
         loanSummary.set({
-            monthlyInstallment: result[0],
-            poolUtilisation: result[1],
-            interestRate: result[2],
-            depositSize: result[3],
-            totalRepayable: result[4],
-            basePrice: erc20BasePrice[1],
-            tokensAvailable:erc20BasePrice[0]
+        monthlyInstallment: Number(simulationResult[0]),
+        poolUtilisation: Number(simulationResult[1]),
+        interestRate: Number(simulationResult[2]),
+        depositSize: Number(simulationResult[3]),
+        totalRepayable: Number(simulationResult[4]),
+        basePrice: Number(basePriceResult[1]),
+        tokensAvailable: Number(basePriceResult[0]),
         });
 
         console.log("loan summary info: ", $loanSummary);
     }
 
     async function populateBorrowAmount(){
-        const erc20Decimals = mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].decimals;
+        const erc20Decimals = mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].decimals;
         await handleBorrowFieldInput();
-        amountToBorrow = fromWei($loanSummary.tokensAvailable, erc20Decimals);
+        amountToBorrow = Number(fromWei($loanSummary.tokensAvailable, erc20Decimals));
         await handleBorrowFieldInput();
     }
 
@@ -450,8 +477,9 @@
                 border="border"
                 paddingX={false}
                 paddingY="py-1.5"
-                backgroundColor="bg-whitePrim-light dark:whitePrim-dark"
+                backgroundColor="bg-whitePrim-light dark:bg-whitePrim-dark"
                 borderColor="border-bluePrim-light"
+                type="button"
                 >
             <span>Learn more</span>
                 </Button>  
@@ -466,7 +494,13 @@
             </div>
         </div>
         
-        <form on:submit={handleCreateLoan(createLoanButtonLabel)}>
+
+        <form on:submit|preventDefault={async (event) => {
+            // Prevent the form from submitting traditionally
+            event.preventDefault();
+            // Call your async function here
+            await handleCreateLoan(createLoanButtonLabel);
+            }}>
             <Block 
                 borderColor={$themeColours['borrow'].light}
                 pagination={false}>
@@ -509,11 +543,11 @@
                             leftFooterTextLabel={borrowErc20Balance}
                             
                             inputField={true}
-                            inputPlaceholderValue = "0"
+                            inputPlaceholderValue = {0}
                             
                             rightFooterText={true}
                             rightFooterTextLabel="ENTIRE POOL"  
-                            autoFillFigure={amountToBorrow}                  
+                            autoFillFigure={Number(amountToBorrow)}                  
                             
                             ></PaymentInputField>
                         <div class="middleTitle flex w-full px-3 justify-between items-center">
@@ -544,7 +578,7 @@
                             cornerRadius={$roundedCornersSm}
 
                             tokenSelection={true}
-                            token={false}
+                            token={""}
                             textLabel={$loanTerms[selectedTerm].ticker}
                             textLabelGreyed={$loanTerms[selectedTerm].available}
                             dropDownArrow={true}
@@ -586,7 +620,7 @@
                             cornerRadius={$roundedCornersSm}
 
                             tokenSelection={false}
-                            token={false}
+                            token={""}
                             textLabel=""
                             dropDownArrow={false}
 
@@ -594,7 +628,7 @@
                             leftFooterTextLabel="Balance"
 
                             inputField={true}
-                            inputPlaceholderValue = "0"
+                            inputPlaceholderValue = {0}
                             
                             rightFooterText={false}
                             rightFooterTextLabel=""
@@ -603,7 +637,7 @@
                         ></PaymentInputField>
             
                         <div class="loanTechDetails px-3 font-BarlowRegular text-xs">
-                            {#if amountToBorrow != ""}
+                            {#if Number(amountToBorrow) > 0}
                             <div class="slippageSelector flex gap-x-1 justify-left items-center">
                                 <span class="flex gap-2">
                                     Slippage
@@ -619,8 +653,12 @@
                                 </button>
                             </div>
                             
-                            <div class="tokensAvailable">Max tokens available: {_round(fromWei($loanSummary.tokensAvailable, $contractAddresses.depositErc20Decimals), 6)} {mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].ticker}</div>
-                            <div class="poolUtilisation">Projected pool utilisation: { _round(Number($loanSummary.poolUtilisation)*0.01, 4)} %</div>
+                            <div class="tokensAvailable">Max tokens available: {_round(fromWei($loanSummary.tokensAvailable, $contractAddresses.depositErc20Decimals), 6)} {mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].ticker}</div>
+                            <div class="poolUtilisation">Projected pool utilisation: { _round(Number($loanSummary.poolUtilisation)*0.01, 4)} %
+                                {#if Number($loanSummary.poolUtilisation)*0.01>100}
+                                <span class="text-orangePrim-light font-BarlowSemibold">NOT ENOUGH AVAILABLE - PLEASE BORROW LESS</span>
+                                {/if}
+                            </div>
                             <div class="disclaimer">Note about early repayment charge for this</div>
                    
 
@@ -631,9 +669,9 @@
                                 <span class="font-BarlowSemiBold text-navyPrim">Your loan summary</span>
                                 
                             </div>
-                            {#if amountToBorrow != ""}
+                            {#if Number(amountToBorrow) > 0}
                             <div class="loanAmount flex gap-1 justify-center items-center">
-                                <span class="font-BarlowRegular">Loan amount: </span><span class="font-BarlowSemiBold">{#if amountToBorrow}{_round(amountToBorrow,8)}  {mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].ticker}{/if}</span>
+                                <span class="font-BarlowRegular">Loan amount: </span><span class="font-BarlowSemiBold">{#if amountToBorrow}{_round(amountToBorrow,8)}  {mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].ticker}{/if}</span>
                                 <button class="rightHandGroup w-3 h-3 min-w-3 min-h-3 flex justify-center items-center" on:click={() => toggleHelp('borrowAmount')}>
                                     <!-- Light Mode Image -->
                                     <img src="/artwork/HelpIcon.svg" 
@@ -648,7 +686,7 @@
                             </div>
                             <div class="monthlyInstallments flex gap-1 justify-center items-center">
                                 <span class="font-BarlowRegular">Monthly installments: </span><span class="font-BarlowSemiBold">
-                                    {_round(monthlyInstallmentsWSlippage,8)} {mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Stablecoin"].ticker} (inc. slippage)</span>
+                                    {_round(monthlyInstallmentsWSlippage,8)} {mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Stablecoin"].ticker} (inc. slippage)</span>
                                 <button class="rightHandGroup w-3 h-3 min-w-3 min-h-3 flex justify-center items-center" on:click={() => toggleHelp('monthlyInstallments')}>
                                     <!-- Light Mode Image -->
                                     <img src="/artwork/HelpIcon.svg" 
@@ -662,7 +700,7 @@
                                 </button>
                             </div>
                             <div class="baseTokenPrice flex gap-1 justify-center items-center">
-                                <span class="font-BarlowRegular">Base token price: </span><span class="font-BarlowSemiBold">{_round(fromWei($loanSummary.basePrice, $contractAddresses.stablecoinDecimals),8)} {mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Stablecoin"].ticker}</span>
+                                <span class="font-BarlowRegular">Base token price: </span><span class="font-BarlowSemiBold">{_round(fromWei($loanSummary.basePrice, $contractAddresses.stablecoinDecimals),8)} {mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Stablecoin"].ticker}</span>
                                 <button class="rightHandGroup w-3 h-3 min-w-3 min-h-3 flex justify-center items-center" on:click={() => toggleHelp('baseTokenPrice')}>
                                     <!-- Light Mode Image -->
                                     <img src="/artwork/HelpIcon.svg" 
@@ -676,7 +714,7 @@
                                 </button>
                             </div>
                             <div class="totalRepayable flex gap-1 justify-center items-center">
-                                <span class="font-BarlowRegular">Total repayable: </span><span class="font-BarlowSemiBold">{_round(fromWei($loanSummary.totalRepayable, $contractAddresses.stablecoinDecimals),8)} {mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Stablecoin"].ticker}</span>
+                                <span class="font-BarlowRegular">Total repayable: </span><span class="font-BarlowSemiBold">{_round(fromWei($loanSummary.totalRepayable, $contractAddresses.stablecoinDecimals),8)} {mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Stablecoin"].ticker}</span>
                                 <button class="rightHandGroup w-3 h-3 min-w-3 min-h-3 flex justify-center items-center" on:click={() => toggleHelp('totalRepayable')}>
                                     <!-- Light Mode Image -->
                                     <img src="/artwork/HelpIcon.svg" 
@@ -690,7 +728,7 @@
                                 </button>
                             </div>
                             <div class="requiredDeposit flex gap-1 justify-center items-center">
-                                <span class="font-BarlowRegular">Required deposit: </span><span class="font-BarlowSemiBold">{fromWei($loanSummary.depositSize, $contractAddresses.depositErc20Decimals)} {mortgageContractsInfo[$chainId].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].ticker}</span>
+                                <span class="font-BarlowRegular">Required deposit: </span><span class="font-BarlowSemiBold">{fromWei($loanSummary.depositSize, $contractAddresses.depositErc20Decimals)} {mortgageContractsInfo[Number($chainId)].vaults[$dropDownSelectionsNames.FAVLoanBorrowVault].tokens["Deposit erc20"].ticker}</span>
                             </div>
                             <div class="loanTerm flex gap-1 justify-center items-center">
                                 <span class="font-BarlowRegular">Loan term: </span><span class="font-BarlowSemiBold">{$loanTerms[selectedTerm].available}</span>

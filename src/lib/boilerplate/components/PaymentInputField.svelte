@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 
     // Svelte imports
     import { createEventDispatcher } from 'svelte';
@@ -7,7 +7,7 @@
     import { currentPage, themeColours} from '../../project/js/stores/brandAndTheme';
 
     // input field value
-    export let value ="";
+    export let value: number | null = null;
     export let inputDisabled = false;
 
     
@@ -21,7 +21,7 @@
 
     // Top right section options
     export let inputField = false; //section toggle
-    export let inputPlaceholderValue =""; 
+    export let inputPlaceholderValue: number | null = null; 
 
     //Bottom left section options
     export let leftFooterText = false; //section toggle
@@ -30,7 +30,7 @@
     //Bottom right section options
     export let rightFooterText = false; //section toggle
     export let rightFooterTextLabel = "";
-    export let autoFillFigure = false;
+    export let autoFillFigure: number | null = null;
     export let disableRightFooterClick = false;
 
     //styling optons
@@ -120,21 +120,24 @@ function handleBlur() {
 
 function handleAutoFill() {
     if (autoFillFigure){
-        const balanceFigure = autoFillFigure;   
+        const balanceFigure = String(autoFillFigure);   
         const balanceNumber = extractNumberFromString(balanceFigure);    
-        value = balanceNumber; // Update the value variable
+        value = Number(balanceNumber); // Update the value variable
         dispatch('autoFillClicked', value); 
     }else{
         const balanceFigure = leftFooterTextLabel;  
         const balanceNumber = extractNumberFromString(balanceFigure); 
-        value = balanceNumber; // Update the value variable
+        value = Number(balanceNumber); // Update the value variable
         dispatch('autoFillClicked', value);
     }
 }
 
 function extractNumberFromString(str) {
-    const matches = str.match(/(\d+(\.\d+)?)/);
-    return matches ? matches[0] : null;
+    if (typeof str === 'string') {
+        const matches = str.match(/(\d+(\.\d+)?)/);
+        return matches ? matches[0] : null;
+    }
+    return null;
 }
 
 
@@ -189,7 +192,7 @@ $: paymentFieldClass = isFocused
 
                 <input type="text" class="input-number text-right bg-transparent focus:outline-none border-none" 
                     on:focus={handleFocus} on:blur={handleBlur} bind:value={value} on:input={handleInput} 
-                    disabled={inputDisabled} placeholder={inputPlaceholderValue}>
+                    disabled={inputDisabled} placeholder={String(inputPlaceholderValue)}>
 
 
             </div>
@@ -239,7 +242,7 @@ $: paymentFieldClass = isFocused
             <div class="rightHandGroupUpper text-right">
                 <input type="text" class="input-number text-right bg-transparent focus:outline-none border-none" 
                     on:focus={handleFocus} on:blur={handleBlur} bind:value={value} on:input={handleInput} 
-                    placeholder={inputPlaceholderValue}>
+                    placeholder={String(inputPlaceholderValue)}>
             </div>
             <div class="rightHandGroupLower text-right">
                 <button type="button" on:click={handleAutoFill} class="rightHandFooterText text-xs" disabled={disableRightFooterClick}>{rightFooterTextLabel}</button>
@@ -287,7 +290,7 @@ $: paymentFieldClass = isFocused
 
             <input type="text" class="input-number text-right bg-transparent focus:outline-none border-none" 
                     on:focus={handleFocus} on:blur={handleBlur} bind:value={value} on:input={handleInput} 
-                    disabled={inputDisabled} placeholder={inputPlaceholderValue}>
+                    disabled={inputDisabled} placeholder={String(inputPlaceholderValue)}>
 
             <button type="button" on:click={handleAutoFill} class="rightHandFooterText text-xs" disabled={disableRightFooterClick}>{rightFooterTextLabel}</button>
             
@@ -336,7 +339,7 @@ $: paymentFieldClass = isFocused
         <div class="rightHandGroup">
             <input type="text" class="input-number text-right bg-transparent focus:outline-none border-none" 
                     on:focus={handleFocus} on:blur={handleBlur} bind:value={value} on:input={handleInput} 
-                    disabled={inputDisabled} placeholder={inputPlaceholderValue}>
+                    disabled={inputDisabled} placeholder={String(inputPlaceholderValue)}>
 
             <button type="button" on:click={handleAutoFill} class="rightHandFooterText text-xs" disabled={disableRightFooterClick}>{rightFooterTextLabel}</button>
         </div>
@@ -376,7 +379,7 @@ $: paymentFieldClass = isFocused
             <div class="rightHandGroupUpper">
                 <input type="text" class="input-number text-right bg-transparent focus:outline-none border-none" 
                     on:focus={handleFocus} on:blur={handleBlur} bind:value={value} on:input={handleInput} 
-                    disabled={inputDisabled} placeholder={inputPlaceholderValue}>
+                    disabled={inputDisabled} placeholder={String(inputPlaceholderValue)}>
             </div>
             <div class="rightHandGroupLower">
                 <button type="button" on:click={handleAutoFill} class="rightHandFooterText text-xs" disabled={disableRightFooterClick}>{rightFooterTextLabel}</button>

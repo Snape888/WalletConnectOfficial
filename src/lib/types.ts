@@ -19,3 +19,11 @@ export type ExtendedProvider = {
 		}
 	}
 }
+
+declare global {
+	interface Window {
+	  ethereum: any; // Define more specifically if possible
+	}
+  }
+  
+  export {}; // Ensures this file is treated as a module.

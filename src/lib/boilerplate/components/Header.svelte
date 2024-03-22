@@ -124,7 +124,7 @@
         <!-- Wallet Component (Always visible) -->
         <div class="right-group flex items-center">
             <div class="text-blackPrim-light dark:text-blackPrim-dark gap-3 text-sm font-BarlowRegular flex  items-center">
-                <ul class=" justify-center hidden md:flex gap-3">
+                <ul class=" justify-center hidden lg:flex gap-3">
                     {#each $protocolInfo as item}
                         {#if item.name === 'noEthContracts'}
                             <li>Live contracts <span class="text-blackPrim-light dark:text-blackPrim-dark font-BarlowBold">{#if $vaultLoans.length > 0}<Countup value={$vaultLoans.length}/>{/if}</span></li>

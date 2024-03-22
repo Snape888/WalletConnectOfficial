@@ -31,7 +31,6 @@
             leading-none
             ${backgroundColor || `bg-${theme.light}`}
             ${borderColor || `border-${theme.light}`}
-            pt-1
         `.trim();
     }
 
