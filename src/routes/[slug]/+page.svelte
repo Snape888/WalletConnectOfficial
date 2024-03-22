@@ -1,6 +1,6 @@
 <script>
     import { page } from '$app/stores';
-    import DashboardPage from '../Dashboard/+page.svelte'
+    import DashboardPage from '../dashboard/+page.svelte'
 </script>
 
 <DashboardPage />
