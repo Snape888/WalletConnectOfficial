@@ -3,7 +3,7 @@
 	import Card from '../../components/Card.svelte';
 	import { EthereumProvider } from '@walletconnect/ethereum-provider';
 	import { onMount } from 'svelte';
-	import Wallet from '../../partials/Wallet.svelte';
+
 	import { ALCHEMY_NODE_KEY_POLYGON_MAINNET, ALCHEMY_NODE_KEY_ETHEREUM_MAINNET, PROJECT_ID_WALLETCONNECT, VITE_PROJECT_ID} from '$lib/boilerplate/js/env.ts';
   	import type { env } from '$env/dynamic/private';
   import Transaction from '../../partials/Transaction.svelte';

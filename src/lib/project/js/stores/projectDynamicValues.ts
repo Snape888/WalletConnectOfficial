@@ -6,7 +6,7 @@ import {mortgageContractsInfo} from '$lib/project/js/contractAddresses';
 
 /// Boilerplate Web3 imports
 import { _round } from "$lib/boilerplate/js/core";
-import { triggerCdpsAppContractCalls, alchemyNode } from "$lib/boilerplate/js/stores/wallet";
+
 
 
 //-----------------------------------------------------------------------------------------------------------------

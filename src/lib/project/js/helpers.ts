@@ -1,6 +1,5 @@
 import { ALCHEMY_NODE_KEY_ETHEREUM_MAINNET, ALCHEMY_NODE_KEY_POLYGON_MAINNET } from "$lib/boilerplate/js/env.ts";
 
-// import { chainId, alchemyNode, user, providerNode } from "$lib/boilerplate/js/stores/wallet.ts";
 import { account, provider, wagmiConfig} from "../../web3modal.ts"
 import { sendTransaction } from '@wagmi/core';
 import toast from 'svelte-french-toast';

@@ -28,7 +28,6 @@
         createSystemLoans
     } from '$lib/project/js/FAVfunctionCalls.ts';
     import { _round } from "$lib/boilerplate/js/core";  
-    import { chainId } from '../js/stores/wallet';
 
     function toTitleCase(str) {
                 return str.replace(/\b\w/g, letter => letter.toUpperCase());

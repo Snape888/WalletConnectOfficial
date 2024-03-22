@@ -50,7 +50,7 @@
     /// Boilerplate Web3 imports
     import erc20Abi from "$lib/boilerplate/abi/erc-20.json";
     import { _round } from "$lib/boilerplate/js/core";
-    import { triggerCdpsAppContractCalls, alchemyNode } from "$lib/boilerplate/js/stores/wallet";
+  
     import BigNumber from 'bignumber.js';
     
     
@@ -129,9 +129,7 @@
       <div>Mortgage Tickets Balance: {$walletBalances[$chainId]?.vaults["AWMATIC-DAI"]?.nfts["Mortgage Tickets"]?.balance ?? 'Loading...'}</div>
       <div>Mortgage Tickets IDs: {$walletBalances[$chainId]?.vaults["AWMATIC-DAI"]?.nfts["Mortgage Tickets"]?.ownedIds ?? 'Loading...'}</div>
   
-      <button on:click={() => getNFTBalance($alchemyNode, "0x10051272122560bddd5771B67D8d7c29d08A6c58", $user)}>
-        Console log NFT balance
-      </button>
+
   
       <button on:click={() => consoleLogBalances()}>
         Console log balances

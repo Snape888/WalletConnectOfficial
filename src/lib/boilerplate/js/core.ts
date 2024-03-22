@@ -1,5 +1,4 @@
 import { ALCHEMY_NODE_KEY_ETHEREUM_MAINNET, ALCHEMY_NODE_KEY_POLYGON_MAINNET } from "$lib/boilerplate/js/env";
-import { chainId, user } from "$lib/boilerplate/js/stores/wallet";
 import { content, visibility } from "$lib/boilerplate/js/stores/alert";
 import erc20Abi from "$lib/boilerplate/abi/erc-20.json";
 import { BigNumber } from "bignumber.js";
@@ -25,34 +24,7 @@ export function abbreviate(word, before, after) {
 
 
 
-export function txCanBeInitiated(lastTxAddedToRegister) {
-    let _chainId;
-    let unsubscribe = chainId.subscribe(value => {
-        _chainId = value;
-    });
-    unsubscribe();
-    let _user;
-    unsubscribe = user.subscribe(value => {
-        _user = value;
-    });
-    unsubscribe();
-    if (_user == "0x0000000000000000000000000000000000000000") {
-        content.set({"title": "Wallet not connected", "description": "Start by connecting your wallet in order to use Cat-in-a-Box's functionalities."});
-        visibility.set("block");
-        return false;
-    }
-    else if (!networkNameByChainId.hasOwnProperty(_chainId)) {
-        content.set({"title": "Wrong network", "description": "This network is not supported."});
-        visibility.set("block");
-        return false;
-    }
-    /*else if (lastTxAddedToRegister == false) {
-        content.set({"title": "Pending transaction", "description": "Please wait a moment until the previous transaction has been sent."});
-        visibility.set("block");
-        return false;
-    }*/
-    return true;
-}
+
 
 export async function getGasPrice(alchemyNode) {
     const speedFactor = 1.2; // TODO: change to one for production

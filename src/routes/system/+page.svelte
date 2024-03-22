@@ -57,7 +57,6 @@
     import HelpMessageModal from '$lib/boilerplate/components/HelpMessageModal.svelte';
     
 
-    // import { triggerCdpsAppContractCalls, user, chainId } from "$lib/boilerplate/js/stores/wallet";
     import { mortgageContractsInfo } from "$lib/project/js/contractAddresses";
     import mortgagePoolContractAbi from "$lib/project/abi/mortgagepool.sol/mortgagepool.json";
     import { getEventListeners } from 'events';

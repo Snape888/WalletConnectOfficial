@@ -52,11 +52,7 @@
     createRedeemableIOUsArray
   } from "$lib/project/js/FAVfunctionCalls.ts";
 
-  import {
-    triggerCdpsAppContractCalls,
-    alchemyNode,    
-    initializeWalletConnect
-  } from "$lib/boilerplate/js/stores/wallet";
+
 
   
 
@@ -115,14 +111,7 @@
   //let connectedAndSupported = false;
 
 
-  $ :{
-    triggerCdpsAppContractCalls.subscribe((value) => {
-    if (value && $connectedAndSupported) {
-      console.log("executing contract calls");
-     loadFavUser();
-    }
-    });
-  }
+
 
 
 

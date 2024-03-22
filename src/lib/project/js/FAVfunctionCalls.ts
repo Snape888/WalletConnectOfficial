@@ -1,4 +1,4 @@
-import { alchemyNode, providerNode } from "$lib/boilerplate/js/stores/wallet.ts";
+
 
 import {
     user,
@@ -35,9 +35,7 @@ import {
     abbreviate,
   } from "$lib/boilerplate/js/core";
 
-  import {
-    triggerCdpsAppContractCalls
-  } from "$lib/boilerplate/js/stores/wallet";
+
 
 /// Project Web3 imports
 // import { userBalance } from "$lib/project/js/stores/protocol";
@@ -214,7 +212,7 @@ export async function createRedeemableIOUsArray() {
 
 export async function scrapeViewablelInfo(contractAddress, contractAbi, contractFunctions, contractValues, functions, nftId) {
     const _chainId = get(chainId);
-    const _alchemyNode = get(alchemyNode);
+
     const _user = get(user);
 
     if (!contractAddress) {

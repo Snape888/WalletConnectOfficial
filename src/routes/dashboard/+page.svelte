@@ -30,6 +30,8 @@
     
     //on-chain data reads
     import { 
+        user,
+        chainId,
         referralLink,
         myLoans,
         myVaults,
@@ -61,7 +63,7 @@
     } from '$lib/project/js/FAVfunctionCalls.ts';
 
     import { _round } from "$lib/boilerplate/js/core";
-    import { chainId, alchemyNode, user, providerNode } from "$lib/boilerplate/js/stores/wallet.ts";
+  
 
     // Boilerplate Components
     import Block from '$lib/boilerplate/components/Block.svelte';
