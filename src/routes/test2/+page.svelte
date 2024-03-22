@@ -25,6 +25,7 @@
 			if (data.result === 'success') {
 			console.log(data.message);
 			// Display the success message to the user or perform any other actions
+			console.log("your address has been submitted");
 			} else {
 			console.error(data.message);
 			// Handle the error scenario
