@@ -8,21 +8,37 @@
 	const webAppUrl = "https://script.google.com/macros/s/AKfycbyk3iSznj1joJKgZszz-i0iGphNvKlJHwhB13hv2h8HIG4vUnC7wEH3YBqB1wSd7zga7w/exec";
   
 	async function sendAddressToAppsScript(address) {
-	const response = await fetch(webAppUrl, {
-		method: 'POST',
-		headers: {
-		'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({
-		address: $user,
-		additionalData: 'Some additional data', // Optional, include if needed
-		}),
-		mode: 'no-cors', // Add this line to disable CORS
-	});
+		try {
+			const response = await fetch(webAppUrl, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				address: $user,
+				additionalData: 'Some additional data',
+			}),
+			});
 
-	// Note: With 'no-cors' mode, you won't be able to access the response data
-	console.log('Request sent');
+			const data = await response.json();
+
+			if (data.result === 'success') {
+			console.log(data.message);
+			// Display the success message to the user or perform any other actions
+			} else {
+			console.error(data.message);
+			// Handle the error scenario
+			}
+		} catch (error) {
+			console.error('Error:', error);
+			// Handle any errors that occurred during the request
+		}
+
+		// Note: With 'no-cors' mode, you won't be able to access the response data
+		
 	}
+
+
 
   </script>
   
