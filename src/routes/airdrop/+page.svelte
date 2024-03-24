@@ -4,8 +4,9 @@
     import Transaction from '../../partials/Transaction.svelte';
 	import SignMessage from '$lib/boilerplate/components/RespondToSignedMessage.svelte';
 	import {user} from '$lib/project/js/stores/projectDynamicValues';
+	import { GAS_URL, sheetId, apiKey, range } from "$lib/boilerplate/js/env.ts";
   
-	const webAppUrl = "https://script.google.com/macros/s/AKfycbxHE7q_wUXHt0YgSw5u_tPb4vm1wNHO-IJBR_fbL1jTlBGEYNS4eAd2yfaNSdsPnVivLA/exec";
+	const webAppUrl = GAS_URL;
 
 	let isEligible = false;
   let existingEntry;
@@ -22,9 +23,10 @@
   let includeFavAirdrop = false;
 
   async function searchAddressInSheet(address) {
-    const sheetId = '1Pwe53dmrtsCqC-ma0qcvDouPXl4eH8zEBvtxOh2fmO0';
-    const apiKey = 'AIzaSyBolNVZkeUF95JJuN8IsC3rCoH7Cj86lvE';
-    const range = 'ConsolidatedList!A:A'; // Search in column A of 'ConsolidatedList' sheet
+    const _sheetId = sheetId;
+    const _apiKey = apiKey;
+    const _range = range;
+
 
     const response = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
