@@ -5,41 +5,51 @@
 	import SignMessage from '../../partials/SignMessage.svelte';
 	import {user} from '$lib/project/js/stores/projectDynamicValues';
   
-	const webAppUrl = "https://script.google.com/macros/s/AKfycbyChRNSKpdPmNemFpIcIVOjzym0rDk3CWdPywVz_LQH8PT5m_8zEzOaxSAB2PmXCaWFOA/exec";
+	const webAppUrl = "https://script.google.com/macros/s/AKfycbwaAOMnhjdQTG_F2yC2dvfQQzfm2CjExnF6oaqeY4Xs2wv-wHyNzpQHhD6Rr5fh0QUU/exec";
   
-	async function sendAddressToAppsScript(address) {
-		try {
-			const response = await fetch(webAppUrl, {
-				method: 'POST',
-				mode: 'cors', // Ensure CORS mode is enabled
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					address: $user,
-					additionalData: 'Some additional data',
-				}),
-			});
+    async function sendAddressToAppsScript(address) {
+        try {
+            // Use 'no-cors' mode as it works for your setup.
+            await fetch(webAppUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    address: address,
+                    additionalData: 'Some additional data',
+                }),
+            });
+
+            console.log("Request sent. Check the Google Sheet for update.");
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+	
 
 
-			const data = await response.json();
+	async function fetchSheetData() {
+		const sheetId = '1Pwe53dmrtsCqC-ma0qcvDouPXl4eH8zEBvtxOh2fmO0';
+		const apiKey = 'AIzaSyBolNVZkeUF95JJuN8IsC3rCoH7Cj86lvE';
+		const range = 'claimOutputs!A1:D6'; // Adjust the range as needed
 
-			if (data.result === 'success') {
-			console.log(data.message);
-			// Display the success message to the user or perform any other actions
-			console.log("your address has been submitted");
-			} else {
-			console.error(data.message);
-			// Handle the error scenario
-			}
-		} catch (error) {
-			console.error('Error:', error);
-			// Handle any errors that occurred during the request
+		const response = await fetch(
+		`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+		);
+
+		if (response.ok) {
+		const data = await response.json();
+		console.log(data.values);
+		// Process the sheet data as needed
+		} else {
+		console.error('Error retrieving sheet data:', response.status);
 		}
-
-		// Note: With 'no-cors' mode, you won't be able to access the response data
-		
 	}
+
+
 
 
 
@@ -80,4 +90,4 @@
 	}
   </style>
   
-  <w3m-button />
+<button on:click={fetchSheetData}>Get sheet data</button>

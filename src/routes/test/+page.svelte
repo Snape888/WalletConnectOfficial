@@ -14,6 +14,31 @@
 	  _chainId = $chainId;
 	  
 	});
+
+	async function sendtoSheets() {
+	const message = "hello mars";
+	const url = "https://script.google.com/macros/s/AKfycbywjaoiZJTKZ4QOauSvBXN_K2mIGjDG3VWk-vhBXt84Pm2OnPmO_aXoC2s6hU9nZYY/exec"; 
+	
+	try {
+		const response = await fetch(url, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+		},
+		body: `message=${encodeURIComponent(message)}`,
+		});
+		
+		if (response.ok) {
+		const data = await response.text();
+		console.log("Response from Sheets:", data);
+		} else {
+		console.error("Error sending data to Sheets:", response.status);
+		}
+	} catch (error) {
+		console.error("Error:", error);
+	}
+	}
+	
   </script>
   
   {#if $account.address}
@@ -50,4 +75,4 @@
 	}
   </style>
   
-  <w3m-button />
+  <button on:click={sendtoSheets}>click</button>

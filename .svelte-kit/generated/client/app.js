@@ -20,28 +20,30 @@ export const nodes = [
 	() => import('./nodes/16'),
 	() => import('./nodes/17'),
 	() => import('./nodes/18'),
-	() => import('./nodes/19')
+	() => import('./nodes/19'),
+	() => import('./nodes/20')
 ];
 
 export const server_loads = [];
 
 export const dictionary = {
 		"/": [3],
-		"/borrow": [5],
-		"/borrow/[slug]": [6],
-		"/convert": [7],
-		"/convert/[slug]": [8],
-		"/dashboard": [9],
-		"/dashboard/[slug]": [10],
-		"/docs": [11],
-		"/docs/[slug]": [12],
-		"/earn": [13],
-		"/earn/[slug]": [14],
-		"/system": [15],
-		"/test2": [17],
-		"/testing": [18],
-		"/test": [16],
-		"/walletConnect": [19,[2]],
+		"/airdrop": [5],
+		"/borrow": [6],
+		"/borrow/[slug]": [7],
+		"/convert": [8],
+		"/convert/[slug]": [9],
+		"/dashboard": [10],
+		"/dashboard/[slug]": [11],
+		"/docs": [12],
+		"/docs/[slug]": [13],
+		"/earn": [14],
+		"/earn/[slug]": [15],
+		"/system": [16],
+		"/test2": [18],
+		"/testing": [19],
+		"/test": [17],
+		"/walletConnect": [20,[2]],
 		"/[slug]": [4]
 	};
 
