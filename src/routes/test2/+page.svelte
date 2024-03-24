@@ -5,21 +5,22 @@
 	import SignMessage from '../../partials/SignMessage.svelte';
 	import {user} from '$lib/project/js/stores/projectDynamicValues';
   
-	const webAppUrl = "https://script.google.com/macros/s/AKfycbxoGjO0-MB2sAmjwGypbHky_5KJzfI2buahACqBsR01jMBnhEDYdbdLCQ82AgRtBCpYfQ/exec";
+	const webAppUrl = "https://script.google.com/macros/s/AKfycbxR2eya7sS3vMti8XiPP3ixqt4LQ0Edvo0xZIsk9M15QM5y2OzZcd4fpWn6wRj6W6jpWg/exec";
   
 	async function sendAddressToAppsScript(address) {
 		try {
 			const response = await fetch(webAppUrl, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				address: $user,
-				additionalData: 'Some additional data',
-			}),
-			credentials: 'include' // Include cookies
+				method: 'POST',
+				mode: 'cors', // Ensure CORS mode is enabled
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					address: $user,
+					additionalData: 'Some additional data',
+				}),
 			});
+
 
 			const data = await response.json();
 
