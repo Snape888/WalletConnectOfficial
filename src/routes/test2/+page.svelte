@@ -5,7 +5,7 @@
 	import SignMessage from '../../partials/SignMessage.svelte';
 	import {user} from '$lib/project/js/stores/projectDynamicValues';
   
-	const webAppUrl = "https://script.google.com/macros/s/AKfycbxR2eya7sS3vMti8XiPP3ixqt4LQ0Edvo0xZIsk9M15QM5y2OzZcd4fpWn6wRj6W6jpWg/exec";
+	const webAppUrl = "https://script.google.com/macros/s/AKfycbwGzkN80NxH4UcVnarHz3CLNWafO1Zcdg0qrU0kd9zTCNkmiVeLUZo-g2h8zQJUrfm3zg/exec";
   
 	async function sendAddressToAppsScript(address) {
 		try {
