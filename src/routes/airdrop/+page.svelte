@@ -29,7 +29,7 @@
 
 
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      `https://sheets.googleapis.com/v4/spreadsheets/${_sheetId}/values/${_range}?key=${_apiKey}`
     );
 
     if (response.ok) {
