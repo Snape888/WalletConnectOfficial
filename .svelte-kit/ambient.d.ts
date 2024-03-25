@@ -27,12 +27,12 @@
  */
 declare module '$env/static/private' {
 	export const VITE_PROJECT_ID_WALLETCONNECT: string;
-	export const VITE_ALCHEMY_NODE_KEY_POLYGON_MAINNET: string;
-	export const VITE_ALCHEMY_NODE_KEY_ETHEREUM_MAINNET: string;
+	export const VITE_ALCHEMY_NODE_POLYGON_MAINNET: string;
+	export const VITE_ALCHEMY_NODE_ETHEREUM_MAINNET: string;
 	export const VITE_PROJECT_ID: string;
 	export const VITE_GASURL: string;
 	export const VITE_SHEET_ID: string;
-	export const VITE_API_KEY: string;
+	export const VITE_API: string;
 	export const VITE_ADDY_LIST: string;
 	export const TERM_PROGRAM: string;
 	export const NODE: string;
@@ -126,12 +126,12 @@ declare module '$env/static/public' {
 declare module '$env/dynamic/private' {
 	export const env: {
 		VITE_PROJECT_ID_WALLETCONNECT: string;
-		VITE_ALCHEMY_NODE_KEY_POLYGON_MAINNET: string;
-		VITE_ALCHEMY_NODE_KEY_ETHEREUM_MAINNET: string;
+		VITE_ALCHEMY_NODE_POLYGON_MAINNET: string;
+		VITE_ALCHEMY_NODE_ETHEREUM_MAINNET: string;
 		VITE_PROJECT_ID: string;
 		VITE_GASURL: string;
 		VITE_SHEET_ID: string;
-		VITE_API_KEY: string;
+		VITE_API: string;
 		VITE_ADDY_LIST: string;
 		TERM_PROGRAM: string;
 		NODE: string;
