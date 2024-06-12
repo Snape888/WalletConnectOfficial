@@ -92,6 +92,93 @@ export const mortgageContractsInfo = ({
                     },
                 }  
             },
+            "USDC-AWMATIC":{
+                id:1,
+                ticker:"USDC-AWMATIC",
+                coreContracts:{
+                    "Mortgage Pool":{ // erc20 
+                        alias: "pool address",
+                        fileName: "mortgagepool.json",
+                        address: "0x4a5881Fb08323d615Eb4382edF68CdEA5f2571c9",
+                        decimals:18,
+                        ticker:"FAV-USDC-AWMATIC",
+                        tokenIcon:"/utilityTokens/FAVStable USDC-AWMATIC.svg",
+                        lastUpdated: "4/2/24"
+                    },  
+                    "Mortgage Conversion Vault":{ // based on erc4626 Ingests erc20 deposits manages shares. People can wait until erc20 shares are worth higher than market price
+                        alias: "conversion vault address",
+                        fileName: "mortgageconversionvault.json",
+                        address: "0xC303A0eC0Fd89D0366fA1114d8F2956785DfD60D",
+                        decimals:18,
+                        lastUpdated: "4/2/24"
+                    },
+                    "Mortgage Fee Conversion Vault":{
+                        alias: "fee conversion vault address",
+                        fileName: "mortgagefeeconversionvault.json",
+                        address: "0x5BC85BdEc3a7f8E15C6dA420a6f78A82A096cd18",
+                        lastUpdated: "4/2/24"
+                    },
+                },
+                tokens:{
+                    "Deposit erc20":{ /// This is the token address of the ERC20 FAV swap user sell to FAV
+                        alias: "tradeable address",
+                        fileName: "",
+                        address: "0x8dF3aad3a84da6b69A4DA8aeC3eA40d9091B2Ac4",
+                        lastUpdated: "4/2/24",
+                        decimals:18,
+                        ticker:"AWMATIC",
+                        tokenIcon:"/defiLogos/AWmatic.svg",
+
+                    },
+                    "Stablecoin":{ /// This is stablecoin token that FAV Earn users deposit
+                        alias: "stablecoin",
+                        fileName: "erc20.json",
+                        address: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                        lastUpdated: "4/2/24",
+                        decimals:6,
+                        ticker:"USDC",
+                        tokenIcon:"/defiLogos/usd-coin-usdc-logo.svg",
+
+                    },
+                    "Mortgage Synth":{ /// This is the FAV incentive token
+                        alias: "Synthetic token address",
+                        fileName: "mortgagesynth.json",
+                        address: "0xe4F866821fe1bbf97aFe3890A3B484c30068391b",
+                        lastUpdated: "4/2/24",
+                        decimals:18,
+                        ticker:"FAV",
+                        tokenIcon:"/utilityTokens/FAV-token.svg",
+
+                    },
+                },
+                nfts:{
+                    "Conversion vault Tickets":{ // AKA 'mortgage tickets'
+                        alias: "tickets",
+                        fileName: "mortgagetickets.json",
+                        address: "0xa00b81e25e0AA015EC7183deEFb27E3fcE491136",
+                        lastUpdated: "4/2/24",
+                        ticker:"USDC-NFT ",
+                        tokenIcon:"/defiLogos/usd-coin-usdc-logo.svg",
+
+                    },
+                    "Conversion vault fee Tickets":{ // fee conversion vault
+                        alias: "tickets2",
+                        fileName: "mortgagefeetickets.json",
+                        address: "0xFEdf396EB1546d3cf5bBb3d24494E0f971F66ECA",
+                        lastUpdated: "4/2/24",
+                        ticker:"USDC-AWMATIC FAV",
+                        tokenIcon:"/utilityTokens/FAVStable USDC-AWMATIC.svg",
+                    },
+                    "Mortgage contracts":{
+                        alias: "contracts address",
+                        fileName: "mortgagecontracts.json",
+                        address: "0xc055E7B7A5260EaCdB5aE1A168345582617aDea7",
+                        lastUpdated: "4/2/24",
+                        ticker:"",
+                        tokenIcon:"",
+                    },
+                }  
+            },
             "DAI-WBTC":{
                 id:1,
                 ticker:"DAI-WBTC",
