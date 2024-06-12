@@ -127,7 +127,7 @@ export const mortgageContractsInfo = ({
                         lastUpdated: "4/2/24",
                         decimals:18,
                         ticker:"WETH",
-                        tokenIcon:"/defiLogos/AWmatic.svg",
+                        tokenIcon:"/defiLogos/weth.svg",
 
                     },
                     "Stablecoin":{ /// This is stablecoin token that FAV Earn users deposit
@@ -166,7 +166,7 @@ export const mortgageContractsInfo = ({
                         fileName: "mortgagefeetickets.json",
                         address: "0xFEdf396EB1546d3cf5bBb3d24494E0f971F66ECA",
                         lastUpdated: "4/2/24",
-                        ticker:"USDC-AWMATIC FAV",
+                        ticker:"USDC-WETH FAV",
                         tokenIcon:"/utilityTokens/FAVStable USDC-WETH.svg",
                     },
                     "Mortgage contracts":{
