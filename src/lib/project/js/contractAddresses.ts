@@ -92,9 +92,9 @@ export const mortgageContractsInfo = ({
                     },
                 }  
             },
-            "USDC-AWMATIC":{
+            "USDC-WETH":{
                 id:1,
-                ticker:"USDC-AWMATIC",
+                ticker:"USDC-WETH",
                 coreContracts:{
                     "Mortgage Pool":{ // erc20 
                         alias: "pool address",
