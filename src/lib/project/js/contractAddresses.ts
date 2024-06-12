@@ -101,8 +101,8 @@ export const mortgageContractsInfo = ({
                         fileName: "mortgagepool.json",
                         address: "0x4a5881Fb08323d615Eb4382edF68CdEA5f2571c9",
                         decimals:18,
-                        ticker:"FAV-USDC-AWMATIC",
-                        tokenIcon:"/utilityTokens/FAVStable USDC-AWMATIC.svg",
+                        ticker:"FAV-USDC-WETH",
+                        tokenIcon:"/utilityTokens/FAVStable USDC-WETH.svg",
                         lastUpdated: "4/2/24"
                     },  
                     "Mortgage Conversion Vault":{ // based on erc4626 Ingests erc20 deposits manages shares. People can wait until erc20 shares are worth higher than market price
@@ -167,7 +167,7 @@ export const mortgageContractsInfo = ({
                         address: "0xFEdf396EB1546d3cf5bBb3d24494E0f971F66ECA",
                         lastUpdated: "4/2/24",
                         ticker:"USDC-AWMATIC FAV",
-                        tokenIcon:"/utilityTokens/FAVStable USDC-AWMATIC.svg",
+                        tokenIcon:"/utilityTokens/FAVStable USDC-WETH.svg",
                     },
                     "Mortgage contracts":{
                         alias: "contracts address",
