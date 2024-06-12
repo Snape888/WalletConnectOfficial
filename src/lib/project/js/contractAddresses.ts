@@ -100,7 +100,7 @@ export const mortgageContractsInfo = ({
                         alias: "pool address",
                         fileName: "mortgagepool.json",
                         address: "0x4a5881Fb08323d615Eb4382edF68CdEA5f2571c9",
-                        decimals:18,
+                        decimals:6,
                         ticker:"FAV-USDC-WETH",
                         tokenIcon:"/utilityTokens/FAVStable USDC-WETH.svg",
                         lastUpdated: "4/2/24"
@@ -164,7 +164,7 @@ export const mortgageContractsInfo = ({
                     "Conversion vault fee Tickets":{ // fee conversion vault
                         alias: "tickets2",
                         fileName: "mortgagefeetickets.json",
-                        address: "0xFEdf396EB1546d3cf5bBb3d24494E0f971F66ECA",
+                        address: "0xe4F866821fe1bbf97aFe3890A3B484c30068391b",
                         lastUpdated: "4/2/24",
                         ticker:"USDC-WETH FAV",
                         tokenIcon:"/utilityTokens/FAVStable USDC-WETH.svg",
