@@ -381,9 +381,7 @@ $: paymentFieldClass = isFocused
                     on:focus={handleFocus} on:blur={handleBlur} bind:value={value} on:input={handleInput} 
                     disabled={inputDisabled} placeholder={String(inputPlaceholderValue)}>
             </div>
-            <div class="rightHandGroupLower">
-                <button type="button" on:click={handleAutoFill} class="rightHandFooterText text-xs" disabled={disableRightFooterClick}>{rightFooterTextLabel}</button>
-            </div>
+            
             
         </div>
     </div>

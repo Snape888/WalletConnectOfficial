@@ -610,7 +610,7 @@
                         inputDisabled={true}
                         inputPlaceholderValue={0}
                         rightFooterText={false}
-                        rightFooterTextLabel=""
+                        
                     
                     ></PaymentInputField>
                     {/if}
