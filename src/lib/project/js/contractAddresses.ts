@@ -133,7 +133,7 @@ export const mortgageContractsInfo = ({
                     "Stablecoin":{ /// This is stablecoin token that FAV Earn users deposit
                         alias: "stablecoin",
                         fileName: "erc20.json",
-                        address: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                        address: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
                         lastUpdated: "4/2/24",
                         decimals:6,
                         ticker:"USDC",
