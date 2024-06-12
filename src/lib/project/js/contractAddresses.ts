@@ -108,7 +108,7 @@ export const mortgageContractsInfo = ({
                     "Mortgage Conversion Vault":{ // based on erc4626 Ingests erc20 deposits manages shares. People can wait until erc20 shares are worth higher than market price
                         alias: "conversion vault address",
                         fileName: "mortgageconversionvault.json",
-                        address: "0xC303A0eC0Fd89D0366fA1114d8F2956785DfD60D",
+                        address: "0x86F3Add7e75586D998b0e73C5F06114C02039593",
                         decimals:18,
                         lastUpdated: "4/2/24"
                     },
