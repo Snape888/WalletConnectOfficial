@@ -123,10 +123,10 @@ export const mortgageContractsInfo = ({
                     "Deposit erc20":{ /// This is the token address of the ERC20 FAV swap user sell to FAV
                         alias: "tradeable address",
                         fileName: "",
-                        address: "0x8dF3aad3a84da6b69A4DA8aeC3eA40d9091B2Ac4",
+                        address: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
                         lastUpdated: "4/2/24",
                         decimals:18,
-                        ticker:"AWMATIC",
+                        ticker:"WETH",
                         tokenIcon:"/defiLogos/AWmatic.svg",
 
                     },
